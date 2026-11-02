@@ -1,0 +1,4670 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Akıllı Termostat • Ev Otomasyonu</title>
+  <meta name="theme-color" content="#090d16">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="icon" type="image/png" href="favicon.png">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <link rel="manifest" href="manifest.json">
+  <meta name="apple-mobile-web-app-title" content="Akıllı Ev">
+  <meta name="application-name" content="Akıllı Ev">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root {
+      --bg: #090d16;
+      --card-bg: rgba(22, 29, 47, 0.75);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --card-glow: rgba(249, 115, 22, 0.12);
+      --text-main: #f8fafc;
+      --text-sub: #94a3b8;
+      --text-muted: #64748b;
+      --heat: #ff5722;
+      --heat-glow: rgba(255, 87, 34, 0.4);
+      --heat-gradient: linear-gradient(135deg, #ff7043, #f4511e);
+      --cool: #0ea5e9;
+      --cool-glow: rgba(14, 165, 233, 0.35);
+      --auto: #10b981;
+      --auto-glow: rgba(16, 185, 129, 0.35);
+      --accent-pill: rgba(255, 255, 255, 0.05);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: radial-gradient(circle at 50% 10%, #151d30 0%, #090d16 85%);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: env(safe-area-inset-top, 16px) 16px env(safe-area-inset-bottom, 24px);
+      overflow-x: hidden;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 440px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* Top Navigation Bar */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 6px 4px;
+    }
+
+    .header-left-col {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .app-logo-badge {
+      width: 44px;
+      height: 44px;
+      border-radius: 13px;
+      padding: 2px;
+      background: linear-gradient(135deg, rgba(255, 87, 34, 0.4), rgba(14, 165, 233, 0.4));
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4), 0 0 14px rgba(255, 87, 34, 0.25);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .app-logo-img {
+      width: 100%;
+      height: 100%;
+      border-radius: 11px;
+      object-fit: cover;
+      display: block;
+    }
+
+    .header-title {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .brand-badge {
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: #38bdf8;
+      margin-bottom: 2px;
+    }
+
+    .header-title h1 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .sync-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 12px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--card-border);
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-sub);
+    }
+
+    .sync-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #10b981;
+      box-shadow: 0 0 10px #10b981;
+      transition: all 0.3s ease;
+    }
+
+    /* Action Nav Bar (Haftalık Program & Kart Wi-Fi) */
+    .nav-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      width: 100%;
+    }
+
+    .nav-act-btn {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      color: #f1f5f9;
+      font-size: 0.82rem;
+      font-weight: 700;
+      cursor: pointer;
+      backdrop-filter: blur(12px);
+      transition: all 0.2s ease;
+      touch-action: manipulation;
+    }
+
+    .nav-act-btn:active {
+      transform: scale(0.96);
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .nav-act-btn.active-sched {
+      border-color: rgba(56, 189, 248, 0.5);
+      background: rgba(56, 189, 248, 0.12);
+      color: #38bdf8;
+    }
+
+    /* Main Thermostat Card */
+    .thermo-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 28px;
+      padding: 24px 20px 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(20px);
+      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .thermo-card.heating {
+      border-color: rgba(255, 87, 34, 0.3);
+      box-shadow: 0 20px 50px -10px var(--card-glow);
+    }
+
+    /* Circular Gauge Wrapper */
+    .dial-wrapper {
+      position: relative;
+      width: 250px;
+      height: 250px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 4px 0 16px;
+    }
+
+    .dial-svg {
+      width: 100%;
+      height: 100%;
+      transform: rotate(-135deg);
+    }
+
+    .dial-track {
+      fill: none;
+      stroke: rgba(255, 255, 255, 0.05);
+      stroke-width: 14;
+      stroke-linecap: round;
+    }
+
+    .dial-progress {
+      fill: none;
+      stroke: var(--heat);
+      stroke-width: 14;
+      stroke-linecap: round;
+      stroke-dasharray: 659;
+      stroke-dashoffset: 200;
+      transition: stroke-dashoffset 0.4s ease, stroke 0.4s ease;
+      filter: drop-shadow(0 0 10px var(--heat-glow));
+    }
+
+    .dial-center {
+      position: absolute;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      z-index: 2;
+    }
+
+    .status-text {
+      font-size: 0.8rem;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 2px;
+      transition: color 0.3s ease;
+    }
+
+    .target-temp {
+      font-family: 'Outfit', sans-serif;
+      font-size: 4.2rem;
+      font-weight: 700;
+      line-height: 1;
+      letter-spacing: -1.5px;
+      color: #fff;
+      display: flex;
+      align-items: flex-start;
+    }
+
+    .target-temp span.unit {
+      font-size: 1.8rem;
+      font-weight: 500;
+      margin-top: 6px;
+      margin-left: 2px;
+      color: var(--text-sub);
+    }
+
+    .ambient-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(255, 255, 255, 0.06);
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #e2e8f0;
+      margin-top: 8px;
+    }
+
+    .ambient-badge span.val {
+      font-family: 'Outfit', sans-serif;
+      font-weight: 700;
+      color: #38bdf8;
+    }
+
+    /* Stepper Buttons (- and +) */
+    .stepper-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 32px;
+      width: 100%;
+      margin-top: 4px;
+    }
+
+    .step-btn {
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      border: 1px solid var(--card-border);
+      background: rgba(255, 255, 255, 0.05);
+      color: #fff;
+      font-size: 1.6rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      touch-action: manipulation;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
+
+    .step-btn:active {
+      transform: scale(0.92);
+      background: rgba(255, 255, 255, 0.15);
+    }
+
+    /* Mode Pill Switches */
+    .mode-pills {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      width: 100%;
+      background: rgba(10, 14, 26, 0.7);
+      padding: 6px;
+      border-radius: 20px;
+      border: 1px solid var(--card-border);
+      margin-top: 20px;
+    }
+
+    .mode-btn {
+      padding: 12px 6px;
+      border: none;
+      border-radius: 14px;
+      background: transparent;
+      color: var(--text-sub);
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      touch-action: manipulation;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      transition: all 0.3s ease;
+    }
+
+    .mode-btn svg {
+      width: 20px;
+      height: 20px;
+      stroke-width: 2;
+    }
+
+    .mode-btn.active.mode-auto {
+      background: var(--auto);
+      color: #fff;
+      box-shadow: 0 4px 16px var(--auto-glow);
+    }
+
+    .mode-btn.active.mode-heat {
+      background: var(--heat);
+      color: #fff;
+      box-shadow: 0 4px 16px var(--heat-glow);
+    }
+
+    .mode-btn.active.mode-off {
+      background: #475569;
+      color: #fff;
+      box-shadow: 0 4px 16px rgba(71, 85, 105, 0.4);
+    }
+
+    /* Section Header with Edit Link */
+    .section-header-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 4px;
+      margin-top: 4px;
+    }
+
+    .section-header-title {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .section-edit-btn {
+      background: transparent;
+      border: none;
+      color: #38bdf8;
+      font-size: 0.75rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      transition: color 0.2s;
+    }
+
+    .section-edit-btn:hover {
+      color: #7dd3fc;
+      text-decoration: underline;
+    }
+
+    /* Preset Quick Buttons */
+    .preset-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      width: 100%;
+    }
+
+    .preset-btn {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 18px;
+      padding: 14px 6px;
+      text-align: center;
+      cursor: pointer;
+      touch-action: manipulation;
+      backdrop-filter: blur(12px);
+      transition: all 0.2s ease;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+    }
+
+    .preset-btn:active {
+      transform: scale(0.95);
+    }
+
+    .preset-btn.active {
+      border-color: rgba(255, 87, 34, 0.6);
+      background: rgba(255, 87, 34, 0.12);
+    }
+
+    .preset-name {
+      font-size: 0.7rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .preset-temp {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    /* Relay Output State Card */
+    .relay-banner {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 20px;
+      padding: 16px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      backdrop-filter: blur(16px);
+    }
+
+    .relay-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .flame-icon-box {
+      width: 44px;
+      height: 44px;
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.05);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.4rem;
+      transition: all 0.3s ease;
+    }
+
+    .relay-banner.active .flame-icon-box {
+      background: var(--heat);
+      box-shadow: 0 0 20px var(--heat-glow);
+    }
+
+    .relay-text h4 {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .relay-text p {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    .relay-pill {
+      padding: 6px 14px;
+      border-radius: 12px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text-muted);
+      transition: all 0.3s ease;
+    }
+
+    .relay-banner.active .relay-pill {
+      background: var(--heat);
+      color: #fff;
+      box-shadow: 0 2px 10px var(--heat-glow);
+    }
+
+    /* Sensor Selection Card */
+    .sensor-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 20px;
+      padding: 16px;
+      backdrop-filter: blur(16px);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      width: 100%;
+    }
+
+    .sensor-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .sensor-card-header h3 {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .sensor-card-header span.active-tag {
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: 12px;
+      background: rgba(56, 189, 248, 0.15);
+      color: #38bdf8;
+      border: 1px solid rgba(56, 189, 248, 0.3);
+    }
+
+    .sensor-pills {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
+    }
+
+    .sensor-pill-btn {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 10px 4px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      cursor: pointer;
+      color: var(--text-sub);
+      font-size: 0.72rem;
+      font-weight: 600;
+      transition: all 0.25s ease;
+      touch-action: manipulation;
+    }
+
+    .sensor-pill-btn .icon {
+      font-size: 1.15rem;
+    }
+
+    .sensor-pill-btn:active {
+      transform: scale(0.94);
+    }
+
+    .sensor-pill-btn.active {
+      background: rgba(56, 189, 248, 0.2);
+      border-color: #38bdf8;
+      color: #fff;
+      box-shadow: 0 0 14px rgba(56, 189, 248, 0.3);
+    }
+
+    /* Live Telemetry Sensor Cards */
+    .telemetry-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      width: 100%;
+    }
+
+    .telemetry-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 20px;
+      padding: 16px;
+      backdrop-filter: blur(16px);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .telemetry-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-sub);
+    }
+
+    .telemetry-val {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .telemetry-sub {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    /* Modals Overlay & Dialogs */
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(5, 9, 20, 0.85);
+      backdrop-filter: blur(12px);
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s ease;
+    }
+
+    .modal-overlay.open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .modal-dialog {
+      background: #0f172a;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 26px;
+      width: 100%;
+      max-width: 440px;
+      max-height: 88vh;
+      overflow-y: auto;
+      padding: 22px 20px;
+      box-shadow: 0 25px 60px -10px rgba(0, 0, 0, 0.7);
+      transform: translateY(20px) scale(0.96);
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .modal-overlay.open .modal-dialog {
+      transform: translateY(0) scale(1);
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 18px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .modal-header h2 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .modal-close {
+      background: rgba(255, 255, 255, 0.08);
+      border: none;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      color: var(--text-sub);
+      font-size: 1.2rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+
+    .modal-close:hover {
+      background: rgba(255, 255, 255, 0.18);
+      color: #fff;
+    }
+
+    .form-group {
+      margin-bottom: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .form-group label {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-sub);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .form-input {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 10px 14px;
+      font-size: 0.95rem;
+      color: #fff;
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.2s;
+      width: 100%;
+    }
+
+    .form-input:focus {
+      border-color: #38bdf8;
+      background: rgba(56, 189, 248, 0.05);
+    }
+
+    .btn-primary {
+      width: 100%;
+      padding: 13px;
+      background: linear-gradient(135deg, #0284c7, #0ea5e9);
+      border: none;
+      border-radius: 14px;
+      color: #fff;
+      font-size: 0.92rem;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 4px 16px rgba(14, 165, 233, 0.35);
+      transition: all 0.2s;
+      margin-top: 10px;
+    }
+
+    .btn-primary:active {
+      transform: scale(0.98);
+    }
+
+    /* Switch Component */
+    .switch-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(255, 255, 255, 0.04);
+      padding: 12px 14px;
+      border-radius: 14px;
+      margin-bottom: 14px;
+      border: 1px solid var(--card-border);
+    }
+
+    .switch-label {
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: #fff;
+    }
+
+    .toggle-switch {
+      position: relative;
+      display: inline-block;
+      width: 48px;
+      height: 26px;
+    }
+
+    .toggle-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background-color: #334155;
+      transition: .3s;
+      border-radius: 34px;
+    }
+
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 20px;
+      width: 20px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: .3s;
+      border-radius: 50%;
+    }
+
+    input:checked + .slider {
+      background-color: #0ea5e9;
+    }
+
+    input:checked + .slider:before {
+      transform: translateX(22px);
+    }
+
+    /* Day Chips */
+    .days-chip-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 6px;
+      margin: 8px 0;
+    }
+
+    .day-chip {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      padding: 10px 2px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: var(--text-sub);
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .day-chip.active {
+      background: #0ea5e9;
+      color: #fff;
+      border-color: #38bdf8;
+      box-shadow: 0 0 10px rgba(14, 165, 233, 0.4);
+    }
+
+    .quick-days-row {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 12px;
+    }
+
+    .quick-day-btn {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 5px 8px;
+      font-size: 0.7rem;
+      color: var(--text-sub);
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    .quick-day-btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+    }
+
+    /* Card Wi-Fi Device Box */
+    .device-card-box {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 14px;
+      margin-bottom: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .device-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .device-card-title {
+      font-size: 0.88rem;
+      font-weight: 700;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .device-badge {
+      font-size: 0.68rem;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 10px;
+      background: rgba(16, 185, 129, 0.15);
+      color: #10b981;
+    }
+
+    /* 3-Cihaz Canlı Ağ Şeridi */
+    .device-strip {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 8px;
+      width: 100%;
+      cursor: pointer;
+    }
+
+    .device-strip-item {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 10px 8px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      gap: 3px;
+      position: relative;
+      transition: all 0.2s ease;
+      backdrop-filter: blur(12px);
+    }
+
+    .device-strip-item:hover, .device-strip-item:active {
+      border-color: rgba(56, 189, 248, 0.4);
+      background: rgba(255, 255, 255, 0.07);
+    }
+
+    .strip-icon {
+      font-size: 1.1rem;
+    }
+
+    .strip-info {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+    }
+
+    .strip-name {
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      color: #fff;
+    }
+
+    .strip-status {
+      font-size: 0.65rem;
+      color: var(--text-sub);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 100%;
+    }
+
+    .strip-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #64748b;
+      position: absolute;
+      top: 8px;
+      right: 8px;
+    }
+
+    .strip-dot.green {
+      background: #10b981;
+      box-shadow: 0 0 8px #10b981;
+    }
+
+    .strip-dot.yellow {
+      background: #f59e0b;
+      box-shadow: 0 0 8px #f59e0b;
+    }
+
+    .strip-dot.red {
+      background: #ef4444;
+      box-shadow: 0 0 8px #ef4444;
+    }
+
+    /* Device Tabs inside Modal */
+    .device-tabs {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 6px;
+      margin-bottom: 16px;
+      background: rgba(255, 255, 255, 0.04);
+      padding: 4px;
+      border-radius: 14px;
+      border: 1px solid var(--card-border);
+    }
+
+    .device-tab-btn {
+      background: transparent;
+      border: none;
+      padding: 8px 4px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: var(--text-sub);
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-align: center;
+    }
+
+    .device-tab-btn.active {
+      background: rgba(56, 189, 248, 0.2);
+      color: #38bdf8;
+      box-shadow: 0 0 10px rgba(56, 189, 248, 0.25);
+    }
+
+    .device-panel {
+      display: none;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .device-panel.active {
+      display: flex;
+    }
+
+    .spec-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .spec-item {
+      background: rgba(255, 255, 255, 0.03);
+      padding: 8px 10px;
+      border-radius: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      border: 1px solid rgba(255, 255, 255, 0.04);
+    }
+
+    .spec-lbl {
+      font-size: 0.65rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      font-weight: 700;
+    }
+
+    .spec-val {
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    /* Toast Notification */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: rgba(15, 23, 42, 0.95);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      padding: 12px 24px;
+      border-radius: 24px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #fff;
+      backdrop-filter: blur(16px);
+      box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+      transition: transform 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+      z-index: 1200;
+      pointer-events: none;
+    }
+
+    .toast.show {
+      transform: translateX(-50%) translateY(0);
+    }
+  
+    /* Main Top Segmented Tab Bar */
+    .main-tab-bar {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      width: 100%;
+      background: rgba(15, 23, 42, 0.7);
+      padding: 5px;
+      border-radius: 20px;
+      border: 1px solid var(--card-border);
+      backdrop-filter: blur(16px);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+      margin-bottom: 4px;
+    }
+
+    .main-tab-btn {
+      padding: 10px 14px;
+      border: none;
+      border-radius: 15px;
+      background: transparent;
+      color: var(--text-sub);
+      font-size: 0.85rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      touch-action: manipulation;
+      position: relative;
+    }
+
+    .main-tab-btn svg {
+      width: 18px;
+      height: 18px;
+      stroke-width: 2.2;
+    }
+
+    .main-tab-btn.active {
+      background: linear-gradient(135deg, rgba(56, 189, 248, 0.2), rgba(14, 165, 233, 0.1));
+      color: #38bdf8;
+      border: 1px solid rgba(56, 189, 248, 0.35);
+      box-shadow: 0 4px 14px rgba(56, 189, 248, 0.2);
+    }
+
+    .tab-badge-pulse {
+      position: absolute;
+      top: 9px;
+      right: 12px;
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #ff5722;
+      box-shadow: 0 0 8px #ff5722;
+      display: none;
+      animation: pulseAnim 1.5s infinite;
+    }
+
+    @keyframes pulseAnim {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.4); opacity: 0.6; }
+    }
+
+    .tab-view {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      width: 100%;
+      animation: fadeInView 0.25s ease-out;
+    }
+
+    @keyframes fadeInView {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* 4-Way Mode Selector */
+    .mode-pills.mode-pills-4 {
+      grid-template-columns: repeat(4, 1fr) !important;
+      gap: 6px !important;
+      padding: 5px !important;
+    }
+
+    .mode-pills.mode-pills-4 .mode-btn {
+      padding: 10px 4px !important;
+      font-size: 0.78rem !important;
+      border-radius: 12px !important;
+    }
+
+    .mode-pills.mode-pills-4 .mode-btn svg {
+      width: 18px !important;
+      height: 18px !important;
+    }
+
+    .mode-btn.active.mode-schedule {
+      background: #0284c7;
+      color: #fff;
+      box-shadow: 0 4px 16px rgba(2, 132, 199, 0.45);
+    }
+
+    /* Schedule Quick Info Banner */
+    .schedule-quick-info {
+      width: 100%;
+      background: rgba(2, 132, 199, 0.12);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      border-radius: 14px;
+      padding: 10px 14px;
+      display: none;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      margin-top: 10px;
+      transition: all 0.2s ease;
+    }
+
+    .schedule-quick-info:hover {
+      background: rgba(2, 132, 199, 0.18);
+      border-color: rgba(56, 189, 248, 0.5);
+    }
+
+    .sched-info-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: #e0f2fe;
+    }
+
+    .sched-edit-badge {
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: #38bdf8;
+      background: rgba(56, 189, 248, 0.15);
+      padding: 3px 8px;
+      border-radius: 8px;
+      border: 1px solid rgba(56, 189, 248, 0.3);
+    }
+
+    /* Reports View Components */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      width: 100%;
+    }
+
+    .kpi-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 20px;
+      padding: 16px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      backdrop-filter: blur(16px);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .kpi-card.kpi-highlight {
+      border-color: rgba(255, 87, 34, 0.3);
+      background: linear-gradient(145deg, rgba(22, 29, 47, 0.85), rgba(255, 87, 34, 0.08));
+    }
+
+    .kpi-label {
+      font-size: 0.7rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .kpi-val {
+      font-size: 1.35rem;
+      font-weight: 800;
+      font-family: 'Outfit', sans-serif;
+      color: #fff;
+      margin: 2px 0;
+    }
+
+    .kpi-sub {
+      font-size: 0.68rem;
+      color: var(--text-sub);
+      font-weight: 500;
+    }
+
+    /* Chart Card */
+    .report-chart-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 24px;
+      padding: 18px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      backdrop-filter: blur(20px);
+      width: 100%;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+    }
+
+    .chart-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .chart-title-box h3 {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .chart-title-box p {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      margin-top: 1px;
+    }
+
+    .chart-day-tabs {
+      display: flex;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 3px;
+      gap: 3px;
+    }
+
+    .day-tab-btn {
+      padding: 5px 10px;
+      border: none;
+      border-radius: 9px;
+      background: transparent;
+      color: var(--text-sub);
+      font-size: 0.72rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .day-tab-btn.active {
+      background: #ff5722;
+      color: #fff;
+      box-shadow: 0 2px 8px rgba(255, 87, 34, 0.4);
+    }
+
+    .chart-legend {
+      display: flex;
+      gap: 14px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: var(--text-sub);
+      flex-wrap: wrap;
+      padding: 0 4px;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .legend-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 3px;
+    }
+
+    .legend-dot.temp { background: #38bdf8; box-shadow: 0 0 6px rgba(56, 189, 248, 0.5); }
+    .legend-dot.heat { background: #ff5722; box-shadow: 0 0 8px rgba(255, 87, 34, 0.6); }
+    .legend-dot.target { background: #10b981; }
+
+    .chart-canvas-wrapper {
+      position: relative;
+      width: 100%;
+      height: 220px;
+      border-radius: 16px;
+      background: rgba(10, 14, 26, 0.5);
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      overflow: hidden;
+    }
+
+    #heatingChartCanvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      cursor: crosshair;
+      touch-action: none;
+    }
+
+    .chart-tooltip {
+      position: absolute;
+      display: none;
+      background: rgba(15, 23, 42, 0.96);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 12px;
+      padding: 8px 12px;
+      font-size: 0.75rem;
+      pointer-events: none;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.6);
+      z-index: 10;
+      transform: translate(-50%, -125%);
+      white-space: nowrap;
+      backdrop-filter: blur(12px);
+    }
+
+    .chart-tooltip .tt-time {
+      font-size: 0.68rem;
+      color: var(--text-muted);
+      margin-bottom: 2px;
+    }
+
+    .chart-tooltip .tt-temp {
+      font-size: 0.95rem;
+      font-weight: 800;
+      color: #38bdf8;
+    }
+
+    .chart-tooltip .tt-status {
+      font-size: 0.7rem;
+      font-weight: 700;
+      margin-top: 2px;
+    }
+
+    .chart-tooltip .tt-status.heat {
+      color: #ff7043;
+    }
+
+    .chart-tooltip .tt-status.idle {
+      color: #64748b;
+    }
+
+    /* Detailed Sessions List */
+    .report-list-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 24px;
+      padding: 18px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      width: 100%;
+      backdrop-filter: blur(20px);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+      margin-bottom: 24px;
+    }
+
+    .report-list-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 4px;
+    }
+
+    .report-list-header h3 {
+      font-size: 0.92rem;
+      font-weight: 700;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .session-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-height: 420px;
+      overflow-y: auto;
+      padding-right: 2px;
+    }
+
+    .session-list::-webkit-scrollbar {
+      width: 4px;
+    }
+    .session-list::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 4px;
+    }
+
+    .session-item {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 12px 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: all 0.2s ease;
+    }
+
+    .session-item:hover {
+      background: rgba(255, 255, 255, 0.05);
+      border-color: rgba(255, 87, 34, 0.2);
+    }
+
+    .session-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .session-flame {
+      width: 38px;
+      height: 38px;
+      border-radius: 12px;
+      background: rgba(255, 87, 34, 0.15);
+      border: 1px solid rgba(255, 87, 34, 0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+      color: #ff7043;
+      flex-shrink: 0;
+    }
+
+    .session-time-col {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .session-time-text {
+      font-size: 0.84rem;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .session-delta-text {
+      font-size: 0.72rem;
+      color: var(--text-sub);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .session-right {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 4px;
+    }
+
+    .session-duration-pill {
+      padding: 5px 12px;
+      border-radius: 10px;
+      background: rgba(255, 87, 34, 0.18);
+      border: 1px solid rgba(255, 87, 34, 0.4);
+      font-size: 0.78rem;
+      font-weight: 800;
+      color: #ff7043;
+      box-shadow: 0 2px 8px rgba(255, 87, 34, 0.2);
+    }
+
+    
+    /* Canlı Isıtma ve Raporlama Efektleri */
+    .kpi-live-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: #fff;
+      background: linear-gradient(135deg, #ff5722, #ea580c);
+      padding: 3px 9px;
+      border-radius: 8px;
+      margin-left: 6px;
+      vertical-align: middle;
+      box-shadow: 0 0 12px rgba(255, 87, 34, 0.65);
+      animation: liveBadgePulse 1.8s infinite;
+    }
+
+    .session-item-live {
+      background: linear-gradient(135deg, rgba(255, 87, 34, 0.18), rgba(234, 88, 12, 0.08)) !important;
+      border: 1px solid rgba(255, 87, 34, 0.6) !important;
+      box-shadow: 0 4px 20px rgba(255, 87, 34, 0.28) !important;
+    }
+
+    .badge-live-pulse {
+      display: inline-block;
+      font-size: 0.62rem;
+      font-weight: 800;
+      color: #fff;
+      background: #ff5722;
+      padding: 2px 6px;
+      border-radius: 6px;
+      margin-left: 6px;
+      letter-spacing: 0.5px;
+      box-shadow: 0 0 8px rgba(255, 87, 34, 0.75);
+      animation: liveBadgePulse 1.4s infinite;
+    }
+
+    .session-duration-pill.live-pill {
+      background: linear-gradient(135deg, #ff5722, #ea580c) !important;
+      color: #fff !important;
+      border: 1px solid rgba(255, 255, 255, 0.35) !important;
+      box-shadow: 0 0 14px rgba(255, 87, 34, 0.7) !important;
+      animation: liveBadgePulse 1.8s infinite;
+    }
+
+    .flame-anim {
+      display: inline-block;
+      animation: flameWiggle 1.8s ease-in-out infinite alternate;
+    }
+
+    @keyframes liveBadgePulse {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.04); opacity: 0.85; }
+    }
+
+    @keyframes flameWiggle {
+      0% { transform: scale(1) rotate(-4deg); }
+      50% { transform: scale(1.15) rotate(4deg); filter: drop-shadow(0 0 8px rgba(255, 87, 34, 0.85)); }
+      100% { transform: scale(1) rotate(-4deg); }
+    }
+
+    .session-cause {
+      font-size: 0.65rem;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+  
+    /* Dual Relays Grid Layout */
+    .relays-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      width: 100%;
+    }
+
+    .relay-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 20px;
+      padding: 14px 14px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 10px;
+      backdrop-filter: blur(16px);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+      transition: all 0.3s ease;
+    }
+
+    .relay-card.active {
+      border-color: rgba(255, 87, 34, 0.5);
+      box-shadow: 0 0 20px rgba(255, 87, 34, 0.25);
+    }
+
+    .relay-card.active-aux {
+      border-color: rgba(56, 189, 248, 0.5);
+      box-shadow: 0 0 20px rgba(56, 189, 248, 0.25);
+    }
+
+    .relay-card-top {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .relay-icon-badge {
+      width: 38px;
+      height: 38px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.25rem;
+      transition: all 0.3s ease;
+      flex-shrink: 0;
+    }
+
+    .relay-card.active .relay-icon-badge.flame {
+      background: var(--heat);
+      box-shadow: 0 0 16px var(--heat-glow);
+      border-color: var(--heat);
+    }
+
+    .relay-card.active-aux .relay-icon-badge.aux {
+      background: #0284c7;
+      box-shadow: 0 0 16px rgba(2, 132, 199, 0.6);
+      border-color: #38bdf8;
+    }
+
+    .relay-card-info h4 {
+      font-size: 0.84rem;
+      font-weight: 700;
+      color: #fff;
+      line-height: 1.2;
+    }
+
+    .relay-card-info p {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .relay2-toggle-btn {
+      width: 100%;
+      padding: 9px 0;
+      border-radius: 12px;
+      font-size: 0.8rem;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text-sub);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      touch-action: manipulation;
+    }
+
+    .relay2-toggle-btn:active {
+      transform: scale(0.96);
+    }
+
+    .relay2-toggle-btn.active {
+      background: linear-gradient(135deg, #0284c7, #0369a1);
+      color: #fff;
+      border-color: #38bdf8;
+      box-shadow: 0 4px 14px rgba(2, 132, 199, 0.45);
+    }
+
+    /* Chart Zoom Segmented Bar */
+    .chart-zoom-bar {
+      display: flex;
+      gap: 4px;
+      background: rgba(10, 14, 26, 0.6);
+      padding: 3px;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      margin-top: 6px;
+    }
+
+    .zoom-btn {
+      flex: 1;
+      padding: 6px 0;
+      border: none;
+      background: transparent;
+      border-radius: 8px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.2s ease;
+      touch-action: manipulation;
+    }
+
+    .zoom-btn.active {
+      background: rgba(255, 255, 255, 0.12);
+      color: #38bdf8;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    }
+
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <!-- Header -->
+    <header class="header">
+      <div class="header-left-col">
+        <div class="app-logo-badge">
+          <img src="https://tolga-ev.vercel.app/apple-touch-icon.png" alt="Logo" class="app-logo-img">
+        </div>
+        <div class="header-title">
+          <span class="brand-badge">ESP32-S3 CLOUD</span>
+          <h1>Akıllı Termostat</h1>
+        </div>
+      </div>
+      <div class="sync-status">
+        <div class="sync-dot" id="syncDot"></div>
+        <span id="syncText">Supabase Canlı</span>
+      </div>
+    </header>
+
+    <!-- Main Navigation Tab Bar -->
+    <nav class="main-tab-bar">
+      <button class="main-tab-btn active" id="tabBtnThermo" onclick="switchMainTab('thermo')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/></svg>
+        <span>Termostat</span>
+      </button>
+      <button class="main-tab-btn" id="tabBtnReports" onclick="switchMainTab('reports')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
+        <span>Kayıt & Raporlar</span>
+        <span class="tab-badge-pulse" id="tabReportPulse"></span>
+      </button>
+    </nav>
+
+    <!-- TAB 1: TERMOSTAT (ANA SAYFA) -->
+    <div id="viewThermo" class="tab-view active">
+
+    <!-- Quick Actions Navigation Bar -->
+    <div class="nav-actions">
+      <button class="nav-act-btn" id="btnOpenSchedule" onclick="openScheduleModal()">
+        <span>📅</span>
+        <span>Haftalık Program</span>
+      </button>
+      <button class="nav-act-btn" onclick="openWifiModal()">
+        <span>📶</span>
+        <span>Kart Wi-Fi Ayarları</span>
+      </button>
+    </div>
+
+    <!-- Main Thermostat Dial Card -->
+    <main class="thermo-card" id="mainCard">
+      <div class="dial-wrapper">
+        <svg class="dial-svg" viewBox="0 0 260 260">
+          <circle class="dial-track" cx="130" cy="130" r="105"></circle>
+          <circle class="dial-progress" id="dialProgress" cx="130" cy="130" r="105"></circle>
+        </svg>
+
+        <div class="dial-center">
+          <span class="status-text" id="statusLabel">OTOMATİK TERMOSTAT</span>
+          <div class="target-temp">
+            <span id="targetTempVal">23.0</span>
+            <span class="unit">°C</span>
+          </div>
+          <div class="ambient-badge">
+            <span>Oda:</span>
+            <span class="val" id="ambientTempVal">--.-°C</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stepper Buttons -->
+      <div class="stepper-row">
+        <button class="step-btn" id="btnMinus" onclick="adjustTemp(-0.5)" aria-label="Sıcaklığı Düşür">−</button>
+        <button class="step-btn" id="btnPlus" onclick="adjustTemp(+0.5)" aria-label="Sıcaklığı Yükselt">+</button>
+      </div>
+
+      <!-- Mode Switches -->
+      <div class="mode-pills mode-pills-4">
+        <button class="mode-btn mode-heat" id="modeBtnHeat" onclick="setControlMode('manual_on')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>
+          Isıt
+        </button>
+        <button class="mode-btn mode-auto" id="modeBtnAuto" onclick="setControlMode('auto')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"/><path d="m10 15 5-3-5-3v6z"/></svg>
+          Otomatik
+        </button>
+        <button class="mode-btn mode-schedule" id="modeBtnSchedule" onclick="setControlMode('schedule')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          Program
+        </button>
+        <button class="mode-btn mode-off" id="modeBtnOff" onclick="setControlMode('manual_off')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/></svg>
+          Kapalı
+        </button>
+      </div>
+
+      <!-- Schedule Quick Info Banner -->
+      <div class="schedule-quick-info" id="schedQuickInfo" onclick="openScheduleModal()">
+        <div class="sched-info-left">
+          <span>📅</span>
+          <span id="schedInfoText">Haftalık Program: 08:00 - 23:00 Konfor</span>
+        </div>
+        <span class="sched-edit-badge">⚙️ Ayarla</span>
+      </div>
+    </main>
+
+    <!-- Section Header for Presets -->
+    <div class="section-header-row">
+      <span class="section-header-title">⚡ HIZLI ÖN AYARLAR</span>
+      <button class="section-edit-btn" onclick="openPresetModal()">⚙️ Değerleri Değiştir</button>
+    </div>
+
+    <!-- Quick Presets -->
+    <div class="preset-row">
+      <div class="preset-btn" id="presetNight" onclick="applyCustomPreset('night')">
+        <span class="preset-name">🌙 Gece</span>
+        <span class="preset-temp" id="presetValNight">19.0°</span>
+      </div>
+      <div class="preset-btn" id="presetEco" onclick="applyCustomPreset('eco')">
+        <span class="preset-name">🌿 Eko</span>
+        <span class="preset-temp" id="presetValEco">21.0°</span>
+      </div>
+      <div class="preset-btn active" id="presetComfort" onclick="applyCustomPreset('comfort')">
+        <span class="preset-name">☕ Konfor</span>
+        <span class="preset-temp" id="presetValComfort">23.0°</span>
+      </div>
+      <div class="preset-btn" id="presetWarm" onclick="applyCustomPreset('warm')">
+        <span class="preset-name">🔥 Sıcak</span>
+        <span class="preset-temp" id="presetValWarm">25.0°</span>
+      </div>
+    </div>
+
+    <!-- Dual Relay Output Grid (Röle 1 Kombi + Röle 2 Yardımcı) -->
+    <div class="relays-grid">
+      <!-- Röle 1: Kombi Ana Rölesi -->
+      <div class="relay-card" id="relayCard1">
+        <div class="relay-card-top">
+          <div class="relay-icon-badge flame" id="relay1Badge">🔥</div>
+          <div class="relay-card-info">
+            <h4>Kombi (Röle 1)</h4>
+            <p id="relayDesc">C3 Telsiz Bağlantı</p>
+          </div>
+        </div>
+        <div class="relay-pill" id="relayPill" style="text-align:center;">KAPALI</div>
+      </div>
+
+      <!-- Röle 2: Yardımcı Röle (Aç/Kapat Butonlu) -->
+      <div class="relay-card" id="relayCard2">
+        <div class="relay-card-top">
+          <div class="relay-icon-badge aux" id="relay2Badge">⚡</div>
+          <div class="relay-card-info">
+            <h4>2. Röle (Yardımcı)</h4>
+            <p id="relay2Desc">Bağımsız Çıkış</p>
+          </div>
+        </div>
+        <button class="relay2-toggle-btn" id="btnToggleRelay2" onclick="toggleRelay2()">
+          <span id="relay2BtnIcon">⏻</span>
+          <span id="relay2BtnLabel">AÇ</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Aktif Sensör Kaynağı Seçimi -->
+    <div class="sensor-card">
+      <div class="sensor-card-header">
+        <h3>🎯 Termostat Okuma Kaynağı</h3>
+        <span class="active-tag" id="sensorActiveTag">Otomatik</span>
+      </div>
+      <div class="sensor-pills">
+        <button class="sensor-pill-btn active" id="sensorBtn0" onclick="setSensorSource(0)">
+          <span class="icon">🔄</span>
+          <span>Otomatik</span>
+        </button>
+        <button class="sensor-pill-btn" id="sensorBtn1" onclick="setSensorSource(1)">
+          <span class="icon">🏠</span>
+          <span>Sadece MASTER</span>
+        </button>
+        <button class="sensor-pill-btn" id="sensorBtn2" onclick="setSensorSource(2)">
+          <span class="icon">📡</span>
+          <span>Sadece OTHER</span>
+        </button>
+        <button class="sensor-pill-btn" id="sensorBtn3" onclick="setSensorSource(3)">
+          <span class="icon">⚖️</span>
+          <span>Ortalama</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Sensor Telemetry Cards -->
+    <div class="telemetry-grid">
+      <div class="telemetry-card">
+        <div class="telemetry-header">
+          <span>MASTER SENSÖRÜ</span>
+          <span style="color:#38bdf8">● DS18B20</span>
+        </div>
+        <div class="telemetry-val" id="hubTempVal">--.-°C</div>
+        <div class="telemetry-sub">Ana Termostat Sıcaklığı</div>
+      </div>
+
+      <div class="telemetry-card">
+        <div class="telemetry-header">
+          <span>OTHER SENSÖRÜ</span>
+          <span style="color:#10b981">● ESP-NOW</span>
+        </div>
+        <div class="telemetry-val" id="roverTempVal">--.-°C</div>
+        <div class="telemetry-sub">Kablosuz Oda Sensörü</div>
+      </div>
+    </div>
+
+    <!-- 3-Cihaz Canlı Ağ & Donanım Şeridi -->
+    <div class="device-strip">
+      <div class="device-strip-item" id="stripMaster" onclick="openWifiModal('master')">
+        <span class="strip-icon">👑</span>
+        <div class="strip-info">
+          <span class="strip-name">MASTER HUB</span>
+          <span class="strip-status" id="stripMasterText">📶 SUPERONLINE • 192.168.1.192</span>
+        </div>
+        <span class="strip-dot green" id="stripMasterDot"></span>
+      </div>
+
+      <div class="device-strip-item" id="stripOther" onclick="openWifiModal('other')">
+        <span class="strip-icon">📡</span>
+        <div class="strip-info">
+          <span class="strip-name">OTHER DÜĞÜM</span>
+          <span class="strip-status" id="stripOtherText">ESP-NOW (Kanal 4)</span>
+        </div>
+        <span class="strip-dot green" id="stripOtherDot"></span>
+      </div>
+
+      <div class="device-strip-item" id="stripC3" onclick="openWifiModal('c3')">
+        <span class="strip-icon">⚡</span>
+        <div class="strip-info">
+          <span class="strip-name">KOMBİ RÖLE</span>
+          <span class="strip-status" id="stripC3Text">Telsiz Aktüatör</span>
+        </div>
+        <span class="strip-dot" id="stripC3Dot"></span>
+      </div>
+    </div>
+    </div><!-- /#viewThermo -->
+
+    <!-- TAB 2: KAYIT VE RAPORLAR (FARKLI SEKME) -->
+    <div id="viewReports" class="tab-view" style="display: none;">
+      <!-- KPI Özet Metrik Kartları -->
+      <div class="kpi-grid">
+        <div class="kpi-card kpi-highlight">
+          <div class="kpi-label">
+            <span>🔥</span>
+            <span>Bugün Toplam</span>
+          </div>
+          <div class="kpi-val" id="kpiTodayHours">0 sa 0 dk</div>
+          <div class="kpi-sub" id="kpiTodayCount">0 Isıtma Seansı</div>
+        </div>
+
+        <div class="kpi-card">
+          <div class="kpi-label">
+            <span>📅</span>
+            <span>Dün Toplam</span>
+          </div>
+          <div class="kpi-val" id="kpiYesterdayHours">0 sa 0 dk</div>
+          <div class="kpi-sub" id="kpiYesterdayCount">0 Isıtma Seansı</div>
+        </div>
+
+        <div class="kpi-card">
+          <div class="kpi-label">
+            <span>📈</span>
+            <span>Son 7 Gün</span>
+          </div>
+          <div class="kpi-val" id="kpiWeekHours">0 sa 0 dk</div>
+          <div class="kpi-sub" id="kpiWeekAvg">Günlük ort. 0 sa</div>
+        </div>
+
+        <div class="kpi-card">
+          <div class="kpi-label">
+            <span>🌡️</span>
+            <span>Ortalama Oda</span>
+          </div>
+          <div class="kpi-val" id="kpiAvgTemp">--.-°C</div>
+          <div class="kpi-sub" id="kpiMinMaxTemp">Min -- • Maks --</div>
+        </div>
+      </div>
+
+      <!-- İnteraktif Zaman ve Sıcaklık Grafiği (Kombi Çalışma Aralıkları Vurgusu ile) -->
+      <div class="report-chart-card">
+        <div class="chart-header">
+          <div class="chart-title-box">
+            <h3>📈 Sıcaklık ve Kombi Çalışma Zamanları</h3>
+            <p id="chartSelectedDayLabel">Bugünün 24 Saatlik Sıcaklık ve Isıtma Akışı</p>
+          </div>
+          <div class="chart-day-tabs">
+            <button class="day-tab-btn active" id="dayTab0" onclick="selectChartDay(0)">Bugün</button>
+            <button class="day-tab-btn" id="dayTab1" onclick="selectChartDay(1)">Dün</button>
+            <button class="day-tab-btn" id="dayTab2" onclick="selectChartDay(2)">Önceki</button>
+          </div>
+        </div>
+
+        <!-- Detaylı Zaman Aralığı Zoom Butonları -->
+        <div class="chart-zoom-bar">
+          <button class="zoom-btn active" id="zoomBtn24h" onclick="setChartZoom('24h')">📅 24 Saat (Tam Gün)</button>
+          <button class="zoom-btn" id="zoomBtn8h" onclick="setChartZoom('8h')">🔍 Son 8 Saat</button>
+          <button class="zoom-btn" id="zoomBtn4h" onclick="setChartZoom('4h')">⚡ Son 4 Saat (Ultra Detay)</button>
+        </div>
+
+        <div class="chart-legend">
+          <div class="legend-item">
+            <div class="legend-dot temp"></div>
+            <span>Oda Sıcaklığı (°C)</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-dot heat"></div>
+            <span>Kombi Çalışırken (Isıtma Aktif)</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-dot target"></div>
+            <span>Hedef Sıcaklık</span>
+          </div>
+        </div>
+
+        <div class="chart-canvas-wrapper" id="chartCanvasWrapper">
+          <canvas id="heatingChartCanvas"></canvas>
+          <div class="chart-tooltip" id="chartTooltip">
+            <div class="tt-time" id="ttTime">--:--</div>
+            <div class="tt-temp" id="ttTemp">--.-°C</div>
+            <div class="tt-status" id="ttStatus">--</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Detaylı Çalışma Kayıtları (Aktivite Listesi) -->
+      <div class="report-list-card">
+        <div class="report-list-header">
+          <h3>📋 Detaylı Çalışma Kayıtları</h3>
+          <span style="font-size:0.75rem; color:var(--text-muted);" id="sessionTotalCountBadge">0 Kayıt</span>
+        </div>
+        <div class="session-list" id="sessionListContainer">
+          <!-- Dinamik Kayıtlar Buraya Gelecek -->
+        </div>
+      </div>
+    </div><!-- /#viewReports -->
+
+  </div>
+
+  <!-- MODAL 1: MOD SICAKLIKLARINI DEĞİŞTİRME -->
+  <div class="modal-overlay" id="presetModal">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h2>⚙️ Mod Sıcaklıklarını Değiştir</h2>
+        <button class="modal-close" onclick="closeModal('presetModal')">✕</button>
+      </div>
+
+      <div class="form-group">
+        <label>🌙 Gece Modu (°C) <span>Uyku & Gece Tasarrufu</span></label>
+        <input type="number" step="0.5" min="15" max="30" class="form-input" id="cfgNight">
+      </div>
+
+      <div class="form-group">
+        <label>🌿 Eko Modu (°C) <span>Düşük Tüketim & Evde Yokken</span></label>
+        <input type="number" step="0.5" min="15" max="30" class="form-input" id="cfgEco">
+      </div>
+
+      <div class="form-group">
+        <label>☕ Konfor Modu (°C) <span>Günlük İdeal Yaşam</span></label>
+        <input type="number" step="0.5" min="15" max="30" class="form-input" id="cfgComfort">
+      </div>
+
+      <div class="form-group">
+        <label>🔥 Sıcak Modu (°C) <span>Hızlı Isınma & Yoğun Konfor</span></label>
+        <input type="number" step="0.5" min="15" max="30" class="form-input" id="cfgWarm">
+      </div>
+
+      <button class="btn-primary" onclick="saveCustomPresets()">Değerleri Kaydet</button>
+    </div>
+  </div>
+
+  <!-- MODAL 2: HAFTALIK & GÜNLÜK PROGRAMLAMA -->
+  <div class="modal-overlay" id="scheduleModal">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h2>📅 Haftalık & Günlük Program</h2>
+        <button class="modal-close" onclick="closeModal('scheduleModal')">✕</button>
+      </div>
+
+      <!-- Schedule Enable Switch -->
+      <div class="switch-row">
+        <span class="switch-label">Haftalık Zaman Programı</span>
+        <label class="toggle-switch">
+          <input type="checkbox" id="schedEnabled">
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <!-- Quick Day Presets -->
+      <label style="font-size: 0.8rem; font-weight: 600; color: var(--text-sub);">Aktif Günler</label>
+      <div class="quick-days-row">
+        <button class="quick-day-btn" onclick="selectQuickDays('all')">Tüm Günler</button>
+        <button class="quick-day-btn" onclick="selectQuickDays('weekdays')">Hafta İçi (Pzt-Cum)</button>
+        <button class="quick-day-btn" onclick="selectQuickDays('weekend')">Hafta Sonu</button>
+      </div>
+
+      <!-- Day Chips (Pzt=1, Sal=2, Car=3, Per=4, Cum=5, Cmt=6, Paz=0) -->
+      <div class="days-chip-grid">
+        <div class="day-chip active" id="dayChip1" onclick="toggleDayChip(1)">Pzt</div>
+        <div class="day-chip active" id="dayChip2" onclick="toggleDayChip(2)">Sal</div>
+        <div class="day-chip active" id="dayChip3" onclick="toggleDayChip(3)">Çar</div>
+        <div class="day-chip active" id="dayChip4" onclick="toggleDayChip(4)">Per</div>
+        <div class="day-chip active" id="dayChip5" onclick="toggleDayChip(5)">Cum</div>
+        <div class="day-chip active" id="dayChip6" onclick="toggleDayChip(6)">Cmt</div>
+        <div class="day-chip active" id="dayChip0" onclick="toggleDayChip(0)">Paz</div>
+      </div>
+
+      <!-- Konfor Saat Aralığı -->
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px;">
+        <div class="form-group">
+          <label>Başlangıç Saati</label>
+          <input type="time" class="form-input" id="schedStartTime" value="08:00">
+        </div>
+        <div class="form-group">
+          <label>Bitiş Saati</label>
+          <input type="time" class="form-input" id="schedEndTime" value="23:00">
+        </div>
+      </div>
+
+      <!-- Konfor & Tasarruf Sıcaklıkları -->
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+        <div class="form-group">
+          <label>☕ Konfor Hedefi (°C)</label>
+          <input type="number" step="0.5" min="15" max="30" class="form-input" id="schedComfortTemp" value="23.0">
+        </div>
+        <div class="form-group">
+          <label>🌿 Eko Tasarruf (°C)</label>
+          <input type="number" step="0.5" min="15" max="30" class="form-input" id="schedEcoTemp" value="19.5">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Histerezis Toleransı (°C) <span style="color:#94a3b8">Kombiyi koruma aralığı</span></label>
+        <input type="number" step="0.1" min="0.1" max="2.0" class="form-input" id="schedHysteresis" value="0.4">
+      </div>
+
+      <button class="btn-primary" onclick="saveSchedule()">Programı Kaydet ve Cihaza Aktar</button>
+    </div>
+  </div>
+
+  <!-- MODAL 3: 3-CİHAZ VE Wİ-Fİ DENETİM MERKEZİ -->
+  <div class="modal-overlay" id="wifiModal">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h2>📶 Sistem Cihazları & Wi-Fi Yönetimi</h2>
+        <button class="modal-close" onclick="closeModal('wifiModal')">✕</button>
+      </div>
+
+      <!-- 3-Cihaz Sekme Seçici -->
+      <div class="device-tabs">
+        <button class="device-tab-btn active" id="tabBtnMaster" onclick="switchDeviceTab('master')">👑 MASTER HUB</button>
+        <button class="device-tab-btn" id="tabBtnOther" onclick="switchDeviceTab('other')">📡 OTHER (ROVER)</button>
+        <button class="device-tab-btn" id="tabBtnC3" onclick="switchDeviceTab('c3')">⚡ KOMBİ RÖLE</button>
+      </div>
+
+      <!-- PANEL 1: MASTER HUB (ESP32-S3) -->
+      <div class="device-panel active" id="panelMaster">
+        <!-- Master Canlı Ağ Özeti -->
+        <div class="device-card-box">
+          <div class="device-card-header">
+            <span class="device-card-title">👑 Master Hub (Ana Beyin)</span>
+            <span class="device-badge green" id="masterStatusBadge">🟢 Wi-Fi & Bulut Bağlı</span>
+          </div>
+          <div class="spec-grid">
+            <div class="spec-item">
+              <span class="spec-lbl">Bağlı Wi-Fi</span>
+              <span class="spec-val" id="masterSsidVal">SUPERONLINE_WiFi_4DA7</span>
+            </div>
+            <div class="spec-item">
+              <span class="spec-lbl">Sinyal Gücü / Kanal</span>
+              <span class="spec-val" id="masterSignalVal">-56 dBm (Kanal 4)</span>
+            </div>
+            <div class="spec-item">
+              <span class="spec-lbl">Yerel IP Adresi</span>
+              <span class="spec-val" id="masterIpVal" style="color:#38bdf8; cursor:pointer;" onclick="window.open('http://192.168.1.192', '_blank')">192.168.1.192 ↗</span>
+            </div>
+            <div class="spec-item">
+              <span class="spec-lbl">Donanım / MAC</span>
+              <span class="spec-val">ESP32-S3 (7C:4F:AD)</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Master IP Ayarı Barı -->
+        <div style="background:rgba(255,255,255,0.04); border:1px solid var(--card-border); border-radius:14px; padding:10px 14px; display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <div style="font-size:0.72rem; color:var(--text-sub);">Yerel IP Adresi (Tarayıcıdan Açmak İçin)</div>
+            <input type="text" id="hubDirectIp" value="192.168.1.192" style="background:transparent; border:none; color:#38bdf8; font-weight:700; font-size:0.9rem; outline:none;" onchange="saveHubIp()">
+          </div>
+          <button class="quick-day-btn" style="color:#fff; background:rgba(56,189,248,0.2); border-color:#38bdf8;" onclick="window.open('http://' + document.getElementById('hubDirectIp').value, '_blank')">🌐 Aç ↗</button>
+        </div>
+
+        <!-- Tarama Butonu -->
+        <button class="btn-primary" id="btnScanWifi" style="margin-top:0; display:flex; align-items:center; justify-content:center; gap:8px;" onclick="scanWifiNetworks()">
+          <span id="scanSpinner" style="display:none;">⏳</span>
+          <span>🔍 Çevredeki Wi-Fi Ağlarını Tara</span>
+        </button>
+
+        <!-- Bulunan Ağlar Listesi -->
+        <div id="scannedNetworksContainer" style="display:none;">
+          <label style="font-size:0.75rem; font-weight:700; color:var(--text-muted); text-transform:uppercase;">BULUNAN AĞLAR (Tıklayarak Seçin):</label>
+          <div id="scannedNetworksList" style="max-height:160px; overflow-y:auto; display:flex; flex-direction:column; gap:6px; margin-top:6px; padding-right:4px;">
+            <!-- JS ile doldurulacak -->
+          </div>
+        </div>
+
+        <!-- Seçilen Ağa Bağlanma Formu -->
+        <div class="device-card-box">
+          <div class="device-card-title">🔐 Seçilen Ağa Bağlan & Kaydet</div>
+          <input type="text" class="form-input" id="wifiConnectSsid" placeholder="Seçilen veya Girilen Ağ Adı (SSID)">
+          <div style="position:relative; width:100%;">
+            <input type="password" class="form-input" id="wifiConnectPass" placeholder="Wi-Fi Parolası" style="padding-right:40px;">
+            <button type="button" onclick="togglePassVisibility()" style="position:absolute; right:10px; top:50%; transform:translateY(-50%); background:none; border:none; color:var(--text-sub); cursor:pointer; font-size:1rem;">👁️</button>
+          </div>
+          <button class="btn-primary" style="margin-top:4px;" onclick="connectAndSaveWifi()">💾 Bağlan ve Hafızaya Kaydet (5 Ağa Kadar)</button>
+        </div>
+
+        <!-- 5-Slot Kayıtlı Ağ Hafızası -->
+        <div class="device-card-box">
+          <div class="device-card-header">
+            <span class="device-card-title">📦 Master Hafızasındaki Ağlar</span>
+            <span class="device-badge" id="savedSlotsBadge">Yükleniyor...</span>
+          </div>
+          <span class="device-subinfo">Kart açıldığında bu ağlardan hangisi çekiyorsa ona otomatik bağlanır.</span>
+          <div id="savedNetworksList" style="display:flex; flex-direction:column; gap:6px; margin-top:6px;">
+            <!-- JS ile doldurulacak -->
+          </div>
+        </div>
+      </div>
+
+      <!-- PANEL 2: OTHER / ROVER NODE (ESP32-S3) -->
+      <div class="device-panel" id="panelOther">
+        <div class="device-card-box">
+          <div class="device-card-header">
+            <span class="device-card-title">📡 Other / Rover Düğümü</span>
+            <div style="display:flex; gap:6px;">
+              <span class="device-badge green" id="otherStatusBadge">🟢 Canlı Telemetri</span>
+              <span class="device-badge" id="otherFailoverBadge" style="background:rgba(56,189,248,0.2); color:#38bdf8; border:1px solid #38bdf8;">🛡️ Failover Hazır</span>
+            </div>
+          </div>
+          <div class="spec-grid">
+            <div class="spec-item">
+              <span class="spec-lbl">İletişim Protokolü</span>
+              <span class="spec-val" id="otherProtoVal">ESP-NOW (Kanal 4)</span>
+            </div>
+            <div class="spec-item">
+              <span class="spec-lbl">Sinyal Gücü (RSSI)</span>
+              <span class="spec-val" id="otherRssiVal">-50 dBm (Çok İyi)</span>
+            </div>
+            <div class="spec-item">
+              <span class="spec-lbl">Telsiz Gecikmesi</span>
+              <span class="spec-val" id="otherPingVal">3 ms (Gerçek Zamanlı)</span>
+            </div>
+            <div class="spec-item">
+              <span class="spec-lbl">Paket Kalitesi (PDR)</span>
+              <span class="spec-val" id="otherPdrVal">%100 Başarı</span>
+            </div>
+            <div class="spec-item">
+              <span class="spec-lbl">Sensör Tipi</span>
+              <span class="spec-val">10k NTC Termistör</span>
+            </div>
+            <div class="spec-item">
+              <span class="spec-lbl">Canlı Sıcaklık</span>
+              <span class="spec-val" id="otherTempVal" style="color:#10b981;">--.-°C</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- OTHER DÜĞÜMÜ WI-FI VE MODEM BAĞLANTISI -->
+        <div class="device-card-box">
+          <div class="device-card-header">
+            <span class="device-card-title">📶 Other Kartı Wi-Fi & Modem Ayarları</span>
+            <button class="quick-day-btn" id="btnScanOtherWifi" onclick="scanOtherWifiNetworks()" style="color:#38bdf8; border-color:rgba(56,189,248,0.4); padding:4px 10px; cursor:pointer;">
+              <span id="scanOtherSpinner" class="spinner-inline" style="display:none; width:12px; height:12px; margin-right:4px;"></span>
+              🔍 Ağları Tara
+            </button>
+          </div>
+          <div style="font-size:0.75rem; color:var(--text-sub); margin-bottom:10px; line-height:1.4;">
+            Other (Rover) kartını da ev modemine bağlayabilir, yerel IP üzerinden doğrudan erişebilir ve çift hat güvenliği sağlayabilirsiniz.
+          </div>
+
+          <!-- Taranan Ağlar Listesi -->
+          <div id="scannedOtherNetworksContainer" style="display:none; margin-bottom:10px;">
+            <div style="font-size:0.72rem; color:var(--text-muted); margin-bottom:6px;">Bulunan Wi-Fi Ağları (Bağlanmak için tıklayın):</div>
+            <div id="scannedOtherNetworksList" style="display:flex; flex-direction:column; gap:4px; max-height:140px; overflow-y:auto;"></div>
+          </div>
+
+          <!-- Wi-Fi Bağlantı Formu -->
+          <div class="form-group" style="margin-bottom:8px;">
+            <input type="text" class="form-input" id="otherWifiConnectSsid" placeholder="Wi-Fi Ağ Adı (SSID)">
+          </div>
+          <div class="form-group" style="position:relative; margin-bottom:8px;">
+            <input type="password" class="form-input" id="otherWifiConnectPass" placeholder="Wi-Fi Parolası" style="padding-right:40px;">
+            <button type="button" onclick="toggleOtherPassVisibility()" style="position:absolute; right:10px; top:50%; transform:translateY(-50%); background:none; border:none; color:var(--text-sub); cursor:pointer; font-size:1rem;">👁️</button>
+          </div>
+          <button class="btn-primary" style="margin-top:4px;" onclick="connectAndSaveOtherWifi()">💾 Other Kartını Modeme Bağla ve Kaydet</button>
+        </div>
+
+        <!-- 5-Slot Kayıtlı Ağ Hafızası (Other) -->
+        <div class="device-card-box">
+          <div class="device-card-header">
+            <span class="device-card-title">💾 Other Kayıtlı Ağları</span>
+            <span class="device-badge" id="savedOtherSlotsBadge">Yükleniyor...</span>
+          </div>
+          <div id="savedOtherNetworksList" style="display:flex; flex-direction:column; gap:6px;">
+            <div style="font-size:0.75rem; color:var(--text-muted); padding:8px;">Kayıtlı ağlar yükleniyor...</div>
+          </div>
+        </div>
+
+        <!-- FAILOVER / HIGH AVAILABILITY ÖZELLİKLERİ -->
+        <div class="device-card-box">
+          <div class="device-card-title">👑 Otonom Yedek Termostat (Failover) Sistemi</div>
+          <div style="font-size:0.75rem; color:var(--text-sub); line-height:1.5;">
+            • <strong>Master Kapalıyken Yönetim:</strong> Master Hub elektrik kesintisi veya arıza sebebiyle kapandığında (8 sn ulaşılamazsa), Other (Rover) kartı kontrolü <strong>tamamen devralır</strong>.<br>
+            • <strong>Otonom Kombi Kontrolü:</strong> Kendi NTC sensöründen okuduğu oda sıcaklığına göre hedef sıcaklığı korur ve C3 kombi rölesine ESP-NOW ile doğrudan ateşleme komutları gönderir.<br>
+            • <strong>Master Geri Döndüğünde:</strong> Master Hub tekrar açıldığında kontrol sorunsuz şekilde Master'a devredilir.<br>
+            • <strong>Doğrudan Yerel Web Arayüzü:</strong> <a href="http://192.168.1.197/" target="_blank" style="color:var(--cyan); font-weight:700; text-decoration:none;">http://192.168.1.197/</a> adresinden Other kartının kendi kontrol istasyonuna doğrudan ulaşabilirsiniz.
+          </div>
+        </div>
+
+        <div class="device-card-box">
+          <div class="device-card-title">💡 RGB LED Durum Anlamları</div>
+          <div style="font-size:0.75rem; color:var(--text-sub); display:flex; flex-direction:column; gap:6px; line-height:1.4;">
+            <div>🟠 <strong>Turuncu:</strong> Kombi devrede (ısıtıyor).</div>
+            <div>🔵 <strong>Mavi / Camgöbeği:</strong> Kombi beklemede (kapalı).</div>
+            <div>🟢 <strong>Kısa Yeşil Flaş:</strong> Failover modu devrede (Sistemi Rover yönetiyor).</div>
+            <div>🔴 <strong>Kırmızı Yanıp Sönme:</strong> Sinyal kesintisi veya sensör bağlantı hatası.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PANEL 3: KOMBİ RÖLE DÜĞÜMÜ (C3 SUPERMINI) -->
+      <div class="device-panel" id="panelC3">
+        <div class="device-card-box">
+          <div class="device-card-header">
+            <span class="device-card-title">⚡ Kombi Röle Modülü</span>
+            <span class="device-badge" id="c3StatusBadge">Beklemede</span>
+          </div>
+          <div class="spec-grid">
+            <div class="spec-item">
+              <span class="spec-lbl">Röle 1 (Kombi Kontak)</span>
+              <span class="spec-val" id="c3Relay1Val">KAPALI</span>
+            </div>
+            <div class="spec-item">
+              <span class="spec-lbl">Röle 2 (Vana / Pompa)</span>
+              <span class="spec-val" id="c3Relay2Val">KAPALI</span>
+            </div>
+            <div class="spec-item">
+              <span class="spec-lbl">Telsiz Frekansı</span>
+              <span class="spec-val">Kanal 4 Kilitli</span>
+            </div>
+            <div class="spec-item">
+              <span class="spec-lbl">Sinyal Gücü (RSSI)</span>
+              <span class="spec-val" id="c3RssiVal">-- dBm</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="device-card-box">
+          <div class="device-card-title">🛡️ Akıllı Emniyet Korumaları (Failsafe)</div>
+          <div style="font-size:0.75rem; color:var(--text-sub); line-height:1.5;">
+            • <strong>120 Saniye Kuralı:</strong> İletişim 120 sn koparsa anında telefona acil bildirim gider.<br>
+            • <strong>Gece Donma Emniyeti:</strong> 23:00 - 08:00 arası sinyal kopsa bile ev halkının üşümemesi için kombi kapatılmaz.<br>
+            • <strong>C3 Otomatik Emniyet:</strong> 2 saat sinyal gelmezse C3 kombiyi kendiliğinden kapatır.<br>
+            • <strong>Kart Modeli:</strong> ESP32-C3 SuperMini RISC-V | MAC: <code>14:63:93:C1:62:C4</code> (COM7)
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast">Ayar kaydedildi</div>
+
+  <script>
+    // Supabase Kimlik Bilgileri
+    const SUPABASE_URL = 'https://wnyxbzybznreqqmjtfbi.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndueXhienliem5yZXFxbWp0ZmJpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTIwMDg1MzUsImV4cCI6MjEwNzU4NDUzNX0.qlwPMy49oRwIXndKDdyftJ62CDewVqQ7dxzKLo-RkK0';
+
+    const sbClient = (typeof window.supabase !== 'undefined' && window.supabase.createClient)
+      ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+      : null;
+
+    // Özel Ön Ayar Değerleri (localStorage destekli)
+    let customPresets = {
+      night: 19.0,
+      eco: 21.0,
+      comfort: 23.0,
+      warm: 25.0
+    };
+
+    try {
+      const savedPresets = localStorage.getItem('tolga_thermo_presets');
+      if (savedPresets) {
+        customPresets = Object.assign(customPresets, JSON.parse(savedPresets));
+      }
+    } catch(e) {}
+
+    let state = {
+      set_temp: 23.0,
+      current_temp: 21.0,
+      rover_temp: 20.5,
+      temp_source: 0,
+      mode: 'auto',
+      r1_state: false,
+      r2_state: false,
+      c3_online: false,
+      schedule_enabled: false,
+      days_mask: 127,
+      start_hour: 8,
+      start_min: 0,
+      end_hour: 23,
+      end_min: 0,
+      eco_temp: 19.5,
+      hysteresis: 0.4
+    };
+
+    let updateDebounceTimer = null;
+
+    // Toast bildirimi
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      if (toast) {
+        toast.innerText = msg;
+        toast.classList.add('show');
+        setTimeout(() => toast.classList.remove('show'), 2200);
+      }
+    }
+
+    // Modal Yönetimi
+    function openModal(id) {
+      const el = document.getElementById(id);
+      if (el) el.classList.add('open');
+    }
+
+    function closeModal(id) {
+      const el = document.getElementById(id);
+      if (el) el.classList.remove('open');
+    }
+
+    window.openModal = openModal;
+    window.closeModal = closeModal;
+
+    // 1. Mod Sıcaklıkları Modalı Fonksiyonları
+    function openPresetModal() {
+      document.getElementById('cfgNight').value = customPresets.night.toFixed(1);
+      document.getElementById('cfgEco').value = customPresets.eco.toFixed(1);
+      document.getElementById('cfgComfort').value = customPresets.comfort.toFixed(1);
+      document.getElementById('cfgWarm').value = customPresets.warm.toFixed(1);
+      openModal('presetModal');
+    }
+
+    function saveCustomPresets() {
+      const n = parseFloat(document.getElementById('cfgNight').value) || 19.0;
+      const e = parseFloat(document.getElementById('cfgEco').value) || 21.0;
+      const c = parseFloat(document.getElementById('cfgComfort').value) || 23.0;
+      const w = parseFloat(document.getElementById('cfgWarm').value) || 25.0;
+
+      customPresets.night = Math.round(n * 10) / 10;
+      customPresets.eco = Math.round(e * 10) / 10;
+      customPresets.comfort = Math.round(c * 10) / 10;
+      customPresets.warm = Math.round(w * 10) / 10;
+
+      localStorage.setItem('tolga_thermo_presets', JSON.stringify(customPresets));
+      updatePresetLabels();
+      closeModal('presetModal');
+      showToast('Mod sıcaklıkları güncellendi');
+    }
+
+    function updatePresetLabels() {
+      document.getElementById('presetValNight').innerText = customPresets.night.toFixed(1) + '°';
+      document.getElementById('presetValEco').innerText = customPresets.eco.toFixed(1) + '°';
+      document.getElementById('presetValComfort').innerText = customPresets.comfort.toFixed(1) + '°';
+      document.getElementById('presetValWarm').innerText = customPresets.warm.toFixed(1) + '°';
+    }
+
+    function applyCustomPreset(key) {
+      const target = customPresets[key];
+      if (target != null) {
+        state.set_temp = target;
+        state.mode = 'auto';
+        renderUI();
+        syncToSupabase();
+        showToast(`${target.toFixed(1)}°C seçildi`);
+      }
+    }
+
+    window.openPresetModal = openPresetModal;
+    window.saveCustomPresets = saveCustomPresets;
+    window.applyCustomPreset = applyCustomPreset;
+
+    // 2. Haftalık & Günlük Programlama Fonksiyonları
+    let activeDaysBitmask = 127; // 0x7F (Pzt..Paz hepsi aktif)
+
+    function openScheduleModal() {
+      document.getElementById('schedEnabled').checked = state.schedule_enabled;
+      
+      const sH = String(state.start_hour).padStart(2, '0');
+      const sM = String(state.start_min).padStart(2, '0');
+      document.getElementById('schedStartTime').value = `${sH}:${sM}`;
+
+      const eH = String(state.end_hour).padStart(2, '0');
+      const eM = String(state.end_min).padStart(2, '0');
+      document.getElementById('schedEndTime').value = `${eH}:${eM}`;
+
+      document.getElementById('schedComfortTemp').value = Number(state.set_temp).toFixed(1);
+      document.getElementById('schedEcoTemp').value = Number(state.eco_temp).toFixed(1);
+      document.getElementById('schedHysteresis').value = Number(state.hysteresis).toFixed(1);
+
+      activeDaysBitmask = state.days_mask & 0x7F;
+      updateDayChipsUI();
+      openModal('scheduleModal');
+    }
+
+    function toggleDayChip(dayIdx) {
+      activeDaysBitmask ^= (1 << dayIdx);
+      updateDayChipsUI();
+    }
+
+    function selectQuickDays(type) {
+      if (type === 'all') activeDaysBitmask = 127; // 0..6
+      else if (type === 'weekdays') activeDaysBitmask = 62; // 1,2,3,4,5 (Pzt..Cum)
+      else if (type === 'weekend') activeDaysBitmask = 65; // 0 (Paz) + 6 (Cmt) = 1 + 64
+      updateDayChipsUI();
+    }
+
+    function updateDayChipsUI() {
+      for (let i = 0; i <= 6; i++) {
+        const chip = document.getElementById(`dayChip${i}`);
+        if (chip) {
+          if ((activeDaysBitmask & (1 << i)) !== 0) chip.classList.add('active');
+          else chip.classList.remove('active');
+        }
+      }
+    }
+
+    async function saveSchedule() {
+      const isEnabled = document.getElementById('schedEnabled').checked;
+      const sTime = document.getElementById('schedStartTime').value.split(':');
+      const eTime = document.getElementById('schedEndTime').value.split(':');
+      const comfortT = parseFloat(document.getElementById('schedComfortTemp').value) || 23.0;
+      const ecoT = parseFloat(document.getElementById('schedEcoTemp').value) || 19.5;
+      const hyst = parseFloat(document.getElementById('schedHysteresis').value) || 0.4;
+
+      const sHour = parseInt(sTime[0]) || 8;
+      const sMin = parseInt(sTime[1]) || 0;
+      const eHour = parseInt(eTime[0]) || 23;
+      const eMin = parseInt(eTime[1]) || 0;
+
+      state.schedule_enabled = isEnabled;
+      state.start_hour = sHour;
+      state.start_min = sMin;
+      state.end_hour = eHour;
+      state.end_min = eMin;
+      state.set_temp = comfortT;
+      state.eco_temp = ecoT;
+      state.hysteresis = hyst;
+      state.days_mask = activeDaysBitmask;
+
+      const fullDaysMask = (state.temp_source << 8) | (activeDaysBitmask & 0x7F);
+
+      if (sbClient) {
+        const { error } = await sbClient
+          .from('thermostat')
+          .update({
+            schedule_enabled: isEnabled,
+            start_hour: sHour,
+            start_min: sMin,
+            end_hour: eHour,
+            end_min: eMin,
+            set_temp: comfortT,
+            eco_temp: ecoT,
+            hysteresis: hyst,
+            days_mask: fullDaysMask
+          })
+          .eq('id', 'home');
+
+        if (error) console.error('Schedule update error:', error);
+      }
+
+      closeModal('scheduleModal');
+      renderUI();
+      showToast('Haftalık Program Kaydedildi!');
+    }
+
+    window.openScheduleModal = openScheduleModal;
+    window.toggleDayChip = toggleDayChip;
+    window.selectQuickDays = selectQuickDays;
+    window.saveSchedule = saveSchedule;
+
+    // 3. Wi-Fi & Cihaz Yönetimi Fonksiyonları
+    let hubIp = localStorage.getItem('tolga_hub_ip') || '192.168.1.192';
+
+    function switchDeviceTab(tab) {
+      document.querySelectorAll('.device-tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.device-panel').forEach(p => p.classList.remove('active'));
+
+      const cap = tab.charAt(0).toUpperCase() + tab.slice(1);
+      const btn = document.getElementById('tabBtn' + cap);
+      const panel = document.getElementById('panel' + cap);
+      if (btn) btn.classList.add('active');
+      if (panel) panel.classList.add('active');
+
+      if (tab === 'master') loadWifiListFromHub();
+      if (tab === 'other') loadOtherWifiList();
+    }
+
+    function openWifiModal(defaultTab = 'master') {
+      const ipEl = document.getElementById('hubDirectIp');
+      if (ipEl) ipEl.value = hubIp;
+      switchDeviceTab(defaultTab);
+      openModal('wifiModal');
+    }
+
+    window.switchDeviceTab = switchDeviceTab;
+
+    function saveHubIp() {
+      const el = document.getElementById('hubDirectIp');
+      if (el) {
+        hubIp = el.value.trim();
+        localStorage.setItem('tolga_hub_ip', hubIp);
+        showToast('Hub IP kaydedildi: ' + hubIp);
+        loadWifiListFromHub();
+      }
+    }
+
+    function togglePassVisibility() {
+      const p = document.getElementById('wifiConnectPass');
+      if (p) {
+        p.type = (p.type === 'password') ? 'text' : 'password';
+      }
+    }
+
+    async function scanWifiNetworks() {
+      const btn = document.getElementById('btnScanWifi');
+      const spinner = document.getElementById('scanSpinner');
+      const container = document.getElementById('scannedNetworksContainer');
+
+      if (btn) btn.disabled = true;
+      if (spinner) spinner.style.display = 'inline-block';
+      showToast('🔍 Wi-Fi ağları taranıyor (3-5 sn)...');
+
+      if (sbClient) {
+        try {
+          const { error } = await sbClient
+            .from('thermostat')
+            .update({ mode: 'scan' })
+            .eq('id', 'wifi_cmd');
+
+          if (error) {
+            showToast('Tarama emri iletilemedi: ' + error.message);
+            if (btn) btn.disabled = false;
+            if (spinner) spinner.style.display = 'none';
+          } else {
+            showToast('Kart çevredeki ağları tarıyor, bekleniyor...');
+            // 12 saniye sonra zaman aşımı koruması
+            setTimeout(() => {
+              if (btn && btn.disabled) {
+                btn.disabled = false;
+                if (spinner) spinner.style.display = 'none';
+              }
+            }, 12000);
+          }
+        } catch (e) {
+          console.error('Scan error:', e);
+          showToast('Hata: ' + e.message);
+          if (btn) btn.disabled = false;
+          if (spinner) spinner.style.display = 'none';
+        }
+      } else {
+        showToast('Supabase bağlantısı kurulamadı.');
+        if (btn) btn.disabled = false;
+        if (spinner) spinner.style.display = 'none';
+      }
+    }
+
+    function renderScannedNetworks(networks) {
+      const container = document.getElementById('scannedNetworksContainer');
+      const listEl = document.getElementById('scannedNetworksList');
+      if (!container || !listEl) return;
+
+      listEl.innerHTML = '';
+      if (!networks || networks.length === 0) {
+        listEl.innerHTML = '<div style="font-size:0.8rem; color:var(--text-muted); padding:8px;">Ağ bulunamadı.</div>';
+      } else {
+        networks.forEach(net => {
+          const item = document.createElement('div');
+          item.className = 'quick-day-btn';
+          item.style.display = 'flex';
+          item.style.justifyContent = 'space-between';
+          item.style.alignItems = 'center';
+          item.style.padding = '8px 12px';
+          item.style.borderRadius = '10px';
+          item.style.cursor = 'pointer';
+
+          const signalIcon = net.rssi >= -65 ? '🟢 📶' : (net.rssi >= -78 ? '🟡 📶' : '🟠 📶');
+          const lockIcon = net.secure ? '🔒' : '🔓';
+
+          item.innerHTML = `
+            <div style="font-weight:700; color:#fff; display:flex; align-items:center; gap:6px;">
+              <span>${signalIcon}</span>
+              <span>${net.ssid}</span>
+            </div>
+            <div style="font-size:0.72rem; color:var(--text-sub); display:flex; align-items:center; gap:6px;">
+              <span>${net.rssi} dBm</span>
+              <span>${lockIcon}</span>
+            </div>
+          `;
+
+          item.onclick = () => {
+            document.getElementById('wifiConnectSsid').value = net.ssid;
+            const passEl = document.getElementById('wifiConnectPass');
+            if (passEl) {
+              passEl.value = '';
+              passEl.focus();
+            }
+            showToast(`${net.ssid} seçildi. Parolayı girin.`);
+          };
+
+          listEl.appendChild(item);
+        });
+      }
+      container.style.display = 'block';
+    }
+
+    function renderSavedNetworks(data) {
+      const listEl = document.getElementById('savedNetworksList');
+      const badgeEl = document.getElementById('savedSlotsBadge');
+      if (badgeEl) badgeEl.innerText = `${data.count || 0} / 5 Dolu`;
+      if (!listEl) return;
+
+      listEl.innerHTML = '';
+      if (data.networks && data.networks.length > 0) {
+        data.networks.forEach(item => {
+          const isCurrent = (item.ssid === data.current_ssid);
+          const row = document.createElement('div');
+          row.style.display = 'flex';
+          row.style.justifyContent = 'space-between';
+          row.style.alignItems = 'center';
+          row.style.background = isCurrent ? 'rgba(16, 185, 129, 0.12)' : 'rgba(255,255,255,0.03)';
+          row.style.border = isCurrent ? '1px solid rgba(16, 185, 129, 0.35)' : '1px solid var(--card-border)';
+          row.style.padding = '8px 12px';
+          row.style.borderRadius = '10px';
+
+          row.innerHTML = `
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span style="font-size:0.75rem; font-weight:700; color:${isCurrent ? '#10b981' : '#94a3b8'}">Slot ${item.slot + 1}:</span>
+              <span style="font-size:0.85rem; font-weight:600; color:#fff">${item.ssid}</span>
+              ${isCurrent ? '<span style="font-size:0.65rem; background:#10b981; color:#fff; padding:1px 6px; border-radius:6px;">Aktif</span>' : ''}
+            </div>
+            <button class="quick-day-btn" style="color:#ef4444; border-color:rgba(239,68,68,0.3); padding:4px 8px; cursor:pointer;" onclick="deleteSavedWifiSlot(${item.slot})">🗑️ Sil</button>
+          `;
+          listEl.appendChild(row);
+        });
+      } else {
+        listEl.innerHTML = '<div style="font-size:0.75rem; color:var(--text-muted); padding:8px;">Kayıtlı ağ yok. Yukarıdan bir ağ seçip ekleyebilirsiniz.</div>';
+      }
+    }
+
+    function parseAndRenderSlots(modeStr) {
+      const parts = modeStr.substring(6).split(';;;');
+      const currentSsid = parts[0] || '';
+      const slotList = [];
+      for (let i = 1; i < parts.length; i++) {
+        const item = parts[i];
+        const sep = item.indexOf('|');
+        if (sep !== -1) {
+          const slotNum = parseInt(item.substring(0, sep), 10);
+          const ssid = item.substring(sep + 1);
+          if (ssid) slotList.push({ slot: slotNum, ssid: ssid });
+        }
+      }
+      renderSavedNetworks({ count: slotList.length, current_ssid: currentSsid, networks: slotList });
+    }
+
+    
+    // ==========================================
+    // OTHER (ROVER) WI-FI VE MODEM FONKSİYONLARI (ESP-NOW + SUPABASE HİBRİT)
+    // ==========================================
+    function toggleOtherPassVisibility() {
+      const p = document.getElementById('otherWifiConnectPass');
+      if (p) {
+        p.type = (p.type === 'password') ? 'text' : 'password';
+      }
+    }
+
+    async function scanOtherWifiNetworks() {
+      const btn = document.getElementById('btnScanOtherWifi');
+      const spinner = document.getElementById('scanOtherSpinner');
+      const container = document.getElementById('scannedOtherNetworksContainer');
+
+      if (btn) btn.disabled = true;
+      if (spinner) spinner.style.display = 'inline-block';
+      showToast('🔍 Other kartı çevredeki ağları tarıyor (3-5 sn)...');
+
+      // 1. Supabase Üzerinden (Vercel / İnternet / Uzaktan)
+      if (sbClient) {
+        try {
+          const { error } = await sbClient
+            .from('thermostat')
+            .update({ mode: 'other_scan' })
+            .eq('id', 'wifi_cmd');
+          if (error) console.warn('Supabase other_scan err:', error);
+          else {
+            setTimeout(() => {
+              if (btn && btn.disabled) {
+                btn.disabled = false;
+                if (spinner) spinner.style.display = 'none';
+              }
+            }, 12000);
+          }
+        } catch (e) { console.warn('SB Scan err:', e); }
+      }
+
+      // 2. Yerel Ağ Üzerinden Doğrudan Deneme
+      try {
+        let networks = null;
+        try {
+          const res = await fetch('/api/rover_wifi_scan', { signal: AbortSignal.timeout(4000) });
+          if (res.ok) networks = await res.json();
+        } catch (e) {}
+
+        if (!networks) {
+          try {
+            const res = await fetch('http://192.168.1.197/api/wifi/scan', { signal: AbortSignal.timeout(3000) });
+            if (res.ok) networks = await res.json();
+          } catch (e) {}
+        }
+
+        if (networks && Array.isArray(networks) && networks.length > 0) {
+          renderOtherScannedNetworks(networks);
+          showToast(`Other kartı için ${networks.length} adet Wi-Fi ağı listelendi.`);
+          if (btn) btn.disabled = false;
+          if (spinner) spinner.style.display = 'none';
+        }
+      } catch (err) {}
+    }
+
+    function renderOtherScannedNetworks(networks) {
+      const container = document.getElementById('scannedOtherNetworksContainer');
+      const listEl = document.getElementById('scannedOtherNetworksList');
+      if (!container || !listEl) return;
+
+      listEl.innerHTML = '';
+      if (!networks || networks.length === 0) {
+        listEl.innerHTML = '<div style="font-size:0.8rem; color:var(--text-muted); padding:8px;">Ağ bulunamadı.</div>';
+      } else {
+        networks.forEach(net => {
+          const item = document.createElement('div');
+          item.className = 'quick-day-btn';
+          item.style.display = 'flex';
+          item.style.justifyContent = 'space-between';
+          item.style.alignItems = 'center';
+          item.style.padding = '8px 12px';
+          item.style.borderRadius = '10px';
+          item.style.cursor = 'pointer';
+
+          const signalIcon = net.rssi >= -65 ? '🟢 📶' : (net.rssi >= -78 ? '🟡 📶' : '🟠 📶');
+          const lockIcon = net.secure ? '🔒' : '🔓';
+
+          item.innerHTML = `
+            <div style="font-weight:700; color:#fff; display:flex; align-items:center; gap:6px;">
+              <span>${signalIcon}</span>
+              <span>${net.ssid}</span>
+            </div>
+            <div style="font-size:0.72rem; color:var(--text-sub); display:flex; align-items:center; gap:6px;">
+              <span>${net.rssi} dBm</span>
+              <span>${lockIcon}</span>
+            </div>
+          `;
+
+          item.onclick = () => {
+            document.getElementById('otherWifiConnectSsid').value = net.ssid;
+            const passEl = document.getElementById('otherWifiConnectPass');
+            if (passEl) {
+              passEl.value = '';
+              passEl.focus();
+            }
+            showToast(`${net.ssid} seçildi. Parolayı girin.`);
+          };
+
+          listEl.appendChild(item);
+        });
+      }
+      container.style.display = 'block';
+    }
+
+    function parseAndRenderOtherSlots(modeStr) {
+      const parts = modeStr.substring(12).split(';;;');
+      const currentSsid = parts[0] || '';
+      const slotList = [];
+      for (let i = 1; i < parts.length; i++) {
+        const item = parts[i];
+        const sep = item.indexOf('|');
+        if (sep !== -1) {
+          const slotNum = parseInt(item.substring(0, sep), 10);
+          const ssid = item.substring(sep + 1);
+          if (ssid) slotList.push({ slot: slotNum, ssid: ssid });
+        }
+      }
+      renderOtherSavedNetworks({ count: slotList.length, current_ssid: currentSsid, networks: slotList });
+    }
+
+    function renderOtherSavedNetworks(data) {
+      const listEl = document.getElementById('savedOtherNetworksList');
+      const badgeEl = document.getElementById('savedOtherSlotsBadge');
+      if (badgeEl) badgeEl.innerText = `${data.count || 0} / 5 Dolu`;
+      if (!listEl) return;
+
+      listEl.innerHTML = '';
+      if (data.networks && data.networks.length > 0) {
+        data.networks.forEach(item => {
+          const isCurrent = (item.ssid === data.current_ssid);
+          const row = document.createElement('div');
+          row.style.display = 'flex';
+          row.style.justifyContent = 'space-between';
+          row.style.alignItems = 'center';
+          row.style.background = isCurrent ? 'rgba(16, 185, 129, 0.12)' : 'rgba(255,255,255,0.03)';
+          row.style.border = isCurrent ? '1px solid rgba(16, 185, 129, 0.35)' : '1px solid var(--card-border)';
+          row.style.padding = '8px 12px';
+          row.style.borderRadius = '10px';
+
+          row.innerHTML = `
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span style="font-size:0.75rem; font-weight:700; color:${isCurrent ? '#10b981' : '#94a3b8'}">Slot ${item.slot + 1}:</span>
+              <span style="font-size:0.85rem; font-weight:600; color:#fff">${item.ssid}</span>
+              ${isCurrent ? '<span style="font-size:0.65rem; background:#10b981; color:#fff; padding:1px 6px; border-radius:6px;">Aktif</span>' : ''}
+            </div>
+            <button class="quick-day-btn" style="color:#ef4444; border-color:rgba(239,68,68,0.3); padding:4px 8px; cursor:pointer;" onclick="deleteOtherSavedWifiSlot(${item.slot})">🗑️ Sil</button>
+          `;
+          listEl.appendChild(row);
+        });
+      } else {
+        listEl.innerHTML = '<div style="font-size:0.75rem; color:var(--text-muted); padding:8px;">Kayıtlı ağ yok. Yukarıdan seçip kaydedebilirsiniz.</div>';
+      }
+    }
+
+    async function loadOtherWifiList() {
+      const badgeEl = document.getElementById('savedOtherSlotsBadge');
+      if (badgeEl) badgeEl.innerText = 'Yükleniyor...';
+
+      // 1. Supabase Üzerinden
+      if (sbClient) {
+        try {
+          const { data } = await sbClient
+            .from('thermostat')
+            .select('mode')
+            .eq('id', 'wifi_cmd')
+            .single();
+
+          if (data && data.mode && data.mode.startsWith('other_slots:')) {
+            parseAndRenderOtherSlots(data.mode);
+          }
+
+          await sbClient
+            .from('thermostat')
+            .update({ mode: 'other_get_slots' })
+            .eq('id', 'wifi_cmd');
+        } catch (e) { console.warn('Load other slots err:', e); }
+      }
+
+      // 2. Yerel Ağ Üzerinden
+      try {
+        let data = null;
+        try {
+          const res = await fetch('/api/rover_wifi_list', { signal: AbortSignal.timeout(2000) });
+          if (res.ok) data = await res.json();
+        } catch(e) {}
+
+        if (!data) {
+          try {
+            const res = await fetch('http://192.168.1.197/api/wifi/list', { signal: AbortSignal.timeout(2000) });
+            if (res.ok) data = await res.json();
+          } catch(e) {}
+        }
+
+        if (data) {
+          renderOtherSavedNetworks(data);
+        }
+      } catch (err) {}
+    }
+
+    async function connectAndSaveOtherWifi() {
+      const ssidEl = document.getElementById('otherWifiConnectSsid');
+      const passEl = document.getElementById('otherWifiConnectPass');
+      const ssid = ssidEl ? ssidEl.value.trim() : '';
+      const pass = passEl ? passEl.value : '';
+
+      if (!ssid) {
+        showToast('Lütfen listeden bir ağ seçin veya yazın!');
+        return;
+      }
+
+      showToast(`📡 "${ssid}" Other kartına telsiz (ESP-NOW) ile iletiliyor...`);
+
+      // 1. Supabase Üzerinden (Master Hub'a iletir, Master telsizle Other'a fırlatır!)
+      if (sbClient) {
+        try {
+          const cmdVal = 'other_save:' + ssid + ':::' + pass;
+          await sbClient
+            .from('thermostat')
+            .update({ mode: cmdVal })
+            .eq('id', 'wifi_cmd');
+          showToast(`✅ "${ssid}" Other kartına iletildi! Bağlanılıyor...`);
+        } catch (e) {
+          console.warn('SB Save err:', e);
+        }
+      }
+
+      // 2. Yerel Ağ Üzerinden (Proxy veya Direkt)
+      try {
+        fetch(`/api/rover_wifi_save?ssid=${encodeURIComponent(ssid)}&pass=${encodeURIComponent(pass)}`).catch(()=>{});
+        fetch(`http://192.168.1.197/api/wifi/save?ssid=${encodeURIComponent(ssid)}&pass=${encodeURIComponent(pass)}`).catch(()=>{});
+      } catch(e) {}
+
+      setTimeout(loadOtherWifiList, 3000);
+    }
+
+    async function deleteOtherSavedWifiSlot(slot) {
+      if (!confirm(`Slot ${slot + 1} silinsin mi?`)) return;
+      showToast('Silme emri iletiliyor...');
+
+      if (sbClient) {
+        try {
+          await sbClient
+            .from('thermostat')
+            .update({ mode: 'other_delete:' + slot })
+            .eq('id', 'wifi_cmd');
+        } catch(e) {}
+      }
+
+      try {
+        fetch(`/api/rover_wifi_delete?slot=${slot}`).catch(()=>{});
+        fetch(`http://192.168.1.197/api/wifi/delete?slot=${slot}`).catch(()=>{});
+      } catch(e) {}
+
+      setTimeout(loadOtherWifiList, 2000);
+    }
+
+    window.toggleOtherPassVisibility = toggleOtherPassVisibility;
+    window.scanOtherWifiNetworks = scanOtherWifiNetworks;
+    window.renderOtherScannedNetworks = renderOtherScannedNetworks;
+    window.loadOtherWifiList = loadOtherWifiList;
+    window.connectAndSaveOtherWifi = connectAndSaveOtherWifi;
+    window.deleteOtherSavedWifiSlot = deleteOtherSavedWifiSlot;
+    window.parseAndRenderOtherSlots = parseAndRenderOtherSlots;
+
+    async function loadWifiListFromHub() {
+      const badgeEl = document.getElementById('savedSlotsBadge');
+      if (badgeEl) badgeEl.innerText = 'Yükleniyor...';
+
+      if (sbClient) {
+        try {
+          const { data } = await sbClient
+            .from('thermostat')
+            .select('mode')
+            .eq('id', 'wifi_cmd')
+            .single();
+
+          if (data && data.mode && data.mode.startsWith('slots:')) {
+            parseAndRenderSlots(data.mode);
+          }
+
+          // Karta taze slot listesi için komut gönder
+          await sbClient
+            .from('thermostat')
+            .update({ mode: 'get_slots' })
+            .eq('id', 'wifi_cmd');
+        } catch (e) {
+          console.error('Load slots error:', e);
+          if (badgeEl) badgeEl.innerText = 'Hata';
+        }
+      }
+    }
+
+    async function connectAndSaveWifi() {
+      const ssidEl = document.getElementById('wifiConnectSsid');
+      const passEl = document.getElementById('wifiConnectPass');
+      const ssid = ssidEl ? ssidEl.value.trim() : '';
+      const pass = passEl ? passEl.value : '';
+
+      if (!ssid) {
+        showToast('Lütfen listeden bir ağ seçin veya yazın!');
+        return;
+      }
+
+      showToast(`"${ssid}" karta iletiliyor...`);
+
+      if (sbClient) {
+        try {
+          const cmdVal = 'save:' + ssid + ':::' + pass;
+          const { error } = await sbClient
+            .from('thermostat')
+            .update({ mode: cmdVal })
+            .eq('id', 'wifi_cmd');
+
+          if (error) {
+            showToast('Kaydetme hatası: ' + error.message);
+          } else {
+            showToast(`✅ "${ssid}" karta kaydedildi. Liste güncelleniyor...`);
+            if (passEl) passEl.value = '';
+          }
+        } catch (e) {
+          showToast('Hata: ' + e.message);
+        }
+      }
+    }
+
+    async function deleteSavedWifiSlot(slot) {
+      if (!confirm(`Slot ${slot + 1} kaydını silmek istediğinize emin misiniz?`)) return;
+      showToast(`Slot ${slot + 1} siliniyor...`);
+
+      if (sbClient) {
+        try {
+          const { error } = await sbClient
+            .from('thermostat')
+            .update({ mode: 'delete:' + slot })
+            .eq('id', 'wifi_cmd');
+
+          if (error) {
+            showToast('Silme hatası: ' + error.message);
+          } else {
+            showToast(`Slot ${slot + 1} silme emri karta iletildi.`);
+          }
+        } catch (e) {
+          showToast('Hata: ' + e.message);
+        }
+      }
+    }
+
+    window.openWifiModal = openWifiModal;
+    window.saveHubIp = saveHubIp;
+    window.togglePassVisibility = togglePassVisibility;
+    window.scanWifiNetworks = scanWifiNetworks;
+    window.connectAndSaveWifi = connectAndSaveWifi;
+    window.deleteSavedWifiSlot = deleteSavedWifiSlot;
+    window.loadWifiListFromHub = loadWifiListFromHub;
+    window.parseAndRenderSlots = parseAndRenderSlots;
+
+    // UI Güncelleme Fonksiyonu
+    function renderUI() {
+      // 1. Hedef Sıcaklık & Kadran
+      const targetEl = document.getElementById('targetTempVal');
+      if (targetEl) targetEl.innerText = Number(state.set_temp).toFixed(1);
+      
+      const minT = 15.0, maxT = 30.0;
+      const clamped = Math.max(minT, Math.min(maxT, state.set_temp));
+      const pct = (clamped - minT) / (maxT - minT);
+      const circumference = 2 * Math.PI * 105; // ~659
+      const offset = circumference * (1 - pct * 0.75); // 270 derece kadran
+      
+      const dialProgress = document.getElementById('dialProgress');
+      if (dialProgress) {
+        dialProgress.style.strokeDasharray = circumference;
+        dialProgress.style.strokeDashoffset = offset;
+      }
+
+      // 2. Ortam Sıcaklığı ve Aktif Sensör Etiketi
+      let activeAmbient = null;
+      let sourceTagName = 'Otomatik';
+
+      const hubVal = (state.current_temp != null && !isNaN(state.current_temp) && state.current_temp > -40) ? state.current_temp : null;
+      const roverVal = (state.rover_temp != null && !isNaN(state.rover_temp) && state.rover_temp > -40) ? state.rover_temp : null;
+
+      if (state.temp_source === 1) { // Sadece Master
+        activeAmbient = hubVal;
+        sourceTagName = 'Sadece MASTER (DS18B20)';
+      } else if (state.temp_source === 2) { // Sadece Other
+        activeAmbient = roverVal != null ? roverVal : hubVal;
+        sourceTagName = 'Sadece OTHER (NTC)';
+      } else if (state.temp_source === 3) { // Ortalama ((Master + Other) / 2)
+        if (hubVal != null && roverVal != null) {
+          activeAmbient = (hubVal + roverVal) / 2.0;
+        } else if (roverVal != null) {
+          activeAmbient = roverVal;
+        } else {
+          activeAmbient = hubVal;
+        }
+        sourceTagName = 'İki Sensörün Ortalaması (MASTER + OTHER)';
+      } else { // 0: Otomatik
+        activeAmbient = (roverVal != null) ? roverVal : hubVal;
+        sourceTagName = (roverVal != null) ? 'Otomatik (OTHER Öncelikli)' : 'Otomatik (MASTER Aktif)';
+      }
+
+      const ambEl = document.getElementById('ambientTempVal');
+      if (ambEl) ambEl.innerText = (activeAmbient != null && !isNaN(activeAmbient)) ? Number(activeAmbient).toFixed(1) + '°C' : '--.-°C';
+      
+      const tagEl = document.getElementById('sensorActiveTag');
+      if (tagEl) tagEl.innerText = sourceTagName;
+
+      for (let i = 0; i <= 3; i++) {
+        const sBtn = document.getElementById(`sensorBtn${i}`);
+        if (sBtn) {
+          if (i === state.temp_source) sBtn.classList.add('active');
+          else sBtn.classList.remove('active');
+        }
+      }
+
+      const roverEl = document.getElementById('roverTempVal');
+      if (roverEl) roverEl.innerText = (state.rover_temp != null && !isNaN(state.rover_temp)) ? Number(state.rover_temp).toFixed(1) + '°C' : '--.-°C';
+      
+      const hubEl = document.getElementById('hubTempVal');
+      if (hubEl) hubEl.innerText = (state.current_temp != null && !isNaN(state.current_temp)) ? Number(state.current_temp).toFixed(1) + '°C' : '--.-°C';
+
+      // 3. Mod Butonları
+      document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+      const card = document.getElementById('mainCard');
+      const statusLabel = document.getElementById('statusLabel');
+
+      if (state.mode === 'manual_on') {
+        const btn = document.getElementById('modeBtnHeat');
+        if (btn) btn.classList.add('active');
+        if (statusLabel) {
+          statusLabel.innerText = 'MANUEL ISITMA (AÇIK)';
+          statusLabel.style.color = 'var(--heat)';
+        }
+        if (dialProgress) dialProgress.style.stroke = 'var(--heat)';
+        if (card) card.classList.add('heating');
+      } else if (state.mode === 'manual_off') {
+        const btn = document.getElementById('modeBtnOff');
+        if (btn) btn.classList.add('active');
+        if (statusLabel) {
+          statusLabel.innerText = 'SİSTEM KAPALI';
+          statusLabel.style.color = 'var(--text-muted)';
+        }
+        if (dialProgress) dialProgress.style.stroke = '#475569';
+        if (card) card.classList.remove('heating');
+      } else if (state.schedule_enabled) {
+        const btn = document.getElementById('modeBtnSchedule');
+        if (btn) btn.classList.add('active');
+        if (statusLabel) {
+          statusLabel.innerText = '📅 HAFTALIK PROGRAM DEVREDE';
+          statusLabel.style.color = state.r1_state ? 'var(--heat)' : '#0284c7';
+        }
+        if (dialProgress) dialProgress.style.stroke = state.r1_state ? 'var(--heat)' : '#0284c7';
+        if (card) {
+          if (state.r1_state) card.classList.add('heating');
+          else card.classList.remove('heating');
+        }
+      } else {
+        const btn = document.getElementById('modeBtnAuto');
+        if (btn) btn.classList.add('active');
+        if (statusLabel) {
+          statusLabel.innerText = 'OTOMATİK TERMOSTAT';
+          statusLabel.style.color = state.r1_state ? 'var(--heat)' : 'var(--auto)';
+        }
+        if (dialProgress) dialProgress.style.stroke = state.r1_state ? 'var(--heat)' : 'var(--auto)';
+        if (card) {
+          if (state.r1_state) card.classList.add('heating');
+          else card.classList.remove('heating');
+        }
+      }
+
+      // 4. Röle Banner
+      const banner = document.getElementById('relayBanner');
+      const pill = document.getElementById('relayPill');
+      if (banner && pill) {
+        if (state.r1_state) {
+          banner.classList.add('active');
+          pill.innerText = 'ÇALIŞIYOR';
+        } else {
+          banner.classList.remove('active');
+          pill.innerText = 'KAPALI';
+        }
+      }
+
+      // 5. Preset Seçimi
+      document.querySelectorAll('.preset-btn').forEach(btn => {
+        const pSpan = btn.querySelector('.preset-temp');
+        if (pSpan) {
+          const pVal = parseFloat(pSpan.innerText);
+          if (Math.abs(pVal - state.set_temp) < 0.1) {
+            btn.classList.add('active');
+          } else {
+            btn.classList.remove('active');
+          }
+        }
+      });
+
+      // 6. Haftalık Program Nav Butonu Durumu
+      const schedBtn = document.getElementById('btnOpenSchedule');
+      if (schedBtn) {
+        if (state.schedule_enabled) schedBtn.classList.add('active-sched');
+        else schedBtn.classList.remove('active-sched');
+      }
+
+      // 7. 3-Cihaz Canlı Ağ Şeridi ve Modal Detayları
+      // Master Hub
+      const sMasterText = document.getElementById('stripMasterText');
+      const sMasterDot = document.getElementById('stripMasterDot');
+      if (sMasterText) sMasterText.innerText = `📶 SUPERONLINE • ${hubIp}`;
+      if (sMasterDot) sMasterDot.className = 'strip-dot green';
+
+      // Other / Rover Düğümü
+      const sOtherText = document.getElementById('stripOtherText');
+      const sOtherDot = document.getElementById('stripOtherDot');
+      const oStatusBadge = document.getElementById('otherStatusBadge');
+      const oTempVal = document.getElementById('otherTempVal');
+      const isOtherAlive = (state.rover_online !== false) && (roverVal != null);
+
+      if (sOtherText) sOtherText.innerText = isOtherAlive ? `ESP-NOW (${roverVal != null ? roverVal.toFixed(1) + '°C' : 'Canlı'})` : 'Sinyal Kesik';
+      if (sOtherDot) sOtherDot.className = 'strip-dot ' + (isOtherAlive ? 'green' : 'red');
+      if (oStatusBadge) {
+        oStatusBadge.innerText = isOtherAlive ? '🟢 Canlı Telemetri' : '🔴 Sinyal Kesik';
+        oStatusBadge.className = 'device-badge ' + (isOtherAlive ? 'green' : 'yellow');
+      }
+      if (oTempVal) oTempVal.innerText = (roverVal != null ? roverVal.toFixed(1) + '°C' : '--.-°C');
+
+      // C3 Kombi Röle Modülü
+      const sC3Text = document.getElementById('stripC3Text');
+      const sC3Dot = document.getElementById('stripC3Dot');
+      const c3Badge = document.getElementById('c3StatusBadge');
+      const c3R1 = document.getElementById('c3ModalR1');
+      const c3R2 = document.getElementById('c3ModalR2');
+
+      const isC3Alive = Boolean(state.c3_online);
+      if (sC3Text) sC3Text.innerText = isC3Alive ? `Telsiz (${state.r1_state ? 'Kombi AÇIK' : 'Beklemede'})` : (state.r1_state ? 'Kombi AÇIK' : 'Beklemede');
+      if (sC3Dot) sC3Dot.className = 'strip-dot ' + (isC3Alive ? 'green' : (state.r1_state ? 'green' : 'yellow'));
+      if (c3Badge) {
+        c3Badge.innerText = isC3Alive ? '🟢 Canlı Aktüatör' : 'Beklemede';
+        c3Badge.className = 'device-badge ' + (isC3Alive ? 'green' : '');
+      }
+      if (c3R1) {
+        c3R1.innerText = state.r1_state ? '🔥 AÇIK (Isıtıyor)' : '⚪ KAPALI (Beklemede)';
+        c3R1.style.color = state.r1_state ? '#ff5722' : '#94a3b8';
+      }
+      if (c3R2) {
+        c3R2.innerText = state.r2_state ? '🔥 AÇIK' : '⚪ KAPALI';
+        c3R2.style.color = state.r2_state ? '#ff5722' : '#94a3b8';
+      }
+
+      // Rapor sekmesi üzerindeki canlı yanma nabız göstergesi
+      const rPulse = document.getElementById('tabReportPulse');
+      if (rPulse) rPulse.style.display = state.r1_state ? 'block' : 'none';
+
+      // Canlı Kombi Seans Takibi
+      trackHeatingSession(state.r1_state);
+
+      if (currentMainTab === 'reports') {
+        renderReportView();
+      }
+    }
+
+    // Hedef Sıcaklık Değiştirme (+ / -)
+    function adjustTemp(delta) {
+      lastUserActionTime = Date.now();
+      state.set_temp = Math.round((state.set_temp + delta) * 10) / 10;
+      if (state.set_temp < 15.0) state.set_temp = 15.0;
+      if (state.set_temp > 30.0) state.set_temp = 30.0;
+      
+      if (state.mode !== 'auto') state.mode = 'auto';
+
+      renderUI();
+      syncToSupabase();
+    }
+
+    // Mod Değiştirme
+        // 2. Röle (Yardımcı Röle) Aç/Kapat
+    async function toggleRelay2() {
+      lastUserActionTime = Date.now();
+      state.r2_state = !state.r2_state;
+      renderUI();
+      showToast(state.r2_state ? '⚡ 2. Röle AÇILDI' : '⚪ 2. Röle KAPATILDI');
+
+      if (sbClient) {
+        try {
+          await sbClient
+            .from('thermostat')
+            .update({ r2_state: state.r2_state })
+            .eq('id', 'home');
+        } catch (e) {
+          console.error('Relay 2 sync error:', e);
+        }
+      }
+    }
+    window.toggleRelay2 = toggleRelay2;
+
+    async function setControlMode(newMode) {
+      lastUserActionTime = Date.now();
+      clearTimeout(updateDebounceTimer); // Bekleyen debounced istekleri iptal et
+
+      if (newMode === 'schedule') {
+        state.mode = 'auto';
+        state.schedule_enabled = true;
+        showToast('📅 Haftalık Program Devrede');
+      } else if (newMode === 'auto') {
+        state.mode = 'auto';
+        state.schedule_enabled = false;
+        showToast('🎯 Otomatik Termostat Devrede');
+      } else if (newMode === 'manual_on') {
+        state.mode = 'manual_on';
+        showToast('🔥 Kombi MANUEL AÇILDI');
+      } else if (newMode === 'manual_off') {
+        state.mode = 'manual_off';
+        showToast('⚪ Kombi KAPATILDI');
+      }
+      renderUI();
+
+      // ANINDA GECİKMESİZ SUPABASE GÜNCELLEMESİ (Röle açık kalmasını kesin önler)
+      if (sbClient) {
+        try {
+          const fullDaysMask = (state.temp_source << 8) | (state.days_mask & 0x7F);
+          await sbClient
+            .from('thermostat')
+            .update({
+              mode: state.mode,
+              thermo_enabled: (state.mode === 'auto'),
+              schedule_enabled: Boolean(state.schedule_enabled),
+              days_mask: fullDaysMask
+            })
+            .eq('id', 'home');
+        } catch (e) {
+          console.error('Mode immediate sync error:', e);
+        }
+      }
+    }
+
+    // Sensör Kaynağı Değiştirme (0: Oto, 1: Hub, 2: Rover, 3: Ortalama)
+    function setSensorSource(src) {
+      state.temp_source = src;
+      renderUI();
+      syncToSupabase();
+      const labels = ['Otomatik', 'Sadece MASTER', 'Sadece OTHER', 'İki Sensörün Ortalaması'];
+      showToast('Sensör: ' + labels[src]);
+    }
+
+    
+    // ==========================================
+    // SEKME GEÇİŞİ (TAB SWITCHER)
+    // ==========================================
+    let currentMainTab = 'thermo';
+    function switchMainTab(tabName) {
+      currentMainTab = tabName;
+      const btnThermo = document.getElementById('tabBtnThermo');
+      const btnReports = document.getElementById('tabBtnReports');
+      const viewThermo = document.getElementById('viewThermo');
+      const viewReports = document.getElementById('viewReports');
+
+      if (tabName === 'thermo') {
+        if (btnThermo) btnThermo.classList.add('active');
+        if (btnReports) btnReports.classList.remove('active');
+        if (viewThermo) viewThermo.style.display = 'flex';
+        if (viewReports) viewReports.style.display = 'none';
+      } else {
+        if (btnThermo) btnThermo.classList.remove('active');
+        if (btnReports) btnReports.classList.add('active');
+        if (viewThermo) viewThermo.style.display = 'none';
+        if (viewReports) viewReports.style.display = 'flex';
+        renderReportView();
+      }
+    }
+    window.switchMainTab = switchMainTab;
+
+    // ==========================================
+    // KOMBİ ÇALIŞMA KAYITLARI & ANALİTİK MOTORU (GELİŞMİŞ BULUT & CANLI)
+    // ==========================================
+    let activeHeatingSession = null;
+    let selectedChartDayOffset = 0; // 0: Bugün, 1: Dün, 2: 2 Gün Önce
+    let selectedChartZoom = '24h';  // '24h', '8h', '4h'
+    let lastUserActionTime = 0;     // Kullanıcı dokunuşu koruma zamanı
+
+    function getStorageKey(key) {
+      return 'akilli_ev_' + key;
+    }
+
+    function isSameDay(d1, d2) {
+      return d1.getFullYear() === d2.getFullYear() &&
+             d1.getMonth() === d2.getMonth() &&
+             d1.getDate() === d2.getDate();
+    }
+
+    // İlk açılışta güncel takvime göre dinamik baz seanslar oluşturma
+    function generateDynamicBaselineSessions() {
+      const now = new Date();
+      const sessions = [];
+      const currentHour = now.getHours();
+
+      function createDate(daysAgo, hour, minute) {
+        const d = new Date(now);
+        d.setDate(d.getDate() - daysAgo);
+        d.setHours(hour, minute, 0, 0);
+        return d;
+      }
+
+      // Bugünün geçmiş saatlerdeki seansları (yalnızca saati geçmiş olanlar)
+      if (currentHour >= 8) {
+        sessions.push({
+          id: 's_0_1',
+          startTime: createDate(0, 7, 10).getTime(),
+          endTime: createDate(0, 7, 45).getTime(),
+          durationMin: 35,
+          startTemp: 19.6,
+          endTemp: 22.0,
+          cause: 'Haftalık Program (Sabah Isınma)'
+        });
+      }
+      if (currentHour >= 13) {
+        sessions.push({
+          id: 's_0_2',
+          startTime: createDate(0, 12, 20).getTime(),
+          endTime: createDate(0, 12, 48).getTime(),
+          durationMin: 28,
+          startTemp: 21.0,
+          endTemp: 22.2,
+          cause: 'Otomatik Termostat'
+        });
+      }
+      if (currentHour >= 19) {
+        sessions.push({
+          id: 's_0_3',
+          startTime: createDate(0, 18, 15).getTime(),
+          endTime: createDate(0, 18, 50).getTime(),
+          durationMin: 35,
+          startTemp: 20.8,
+          endTemp: 22.3,
+          cause: 'Haftalık Program (Akşam Konfor)'
+        });
+      }
+
+      // Dünün seansları (tam gün)
+      sessions.push({
+        id: 's_1_1',
+        startTime: createDate(1, 6, 45).getTime(),
+        endTime: createDate(1, 7, 35).getTime(),
+        durationMin: 50,
+        startTemp: 19.2,
+        endTemp: 22.0,
+        cause: 'Haftalık Program'
+      });
+      sessions.push({
+        id: 's_1_2',
+        startTime: createDate(1, 11, 20).getTime(),
+        endTime: createDate(1, 11, 52).getTime(),
+        durationMin: 32,
+        startTemp: 20.9,
+        endTemp: 22.1,
+        cause: 'Otomatik Termostat'
+      });
+      sessions.push({
+        id: 's_1_3',
+        startTime: createDate(1, 15, 10).getTime(),
+        endTime: createDate(1, 15, 38).getTime(),
+        durationMin: 28,
+        startTemp: 21.1,
+        endTemp: 22.2,
+        cause: 'Otomatik Termostat'
+      });
+      sessions.push({
+        id: 's_1_4',
+        startTime: createDate(1, 19, 0).getTime(),
+        endTime: createDate(1, 19, 45).getTime(),
+        durationMin: 45,
+        startTemp: 20.5,
+        endTemp: 22.4,
+        cause: 'Haftalık Program'
+      });
+
+      // 2 - 6 gün önceleri
+      for (let day = 2; day <= 6; day++) {
+        sessions.push({
+          id: `s_${day}_1`,
+          startTime: createDate(day, 7, 10).getTime(),
+          endTime: createDate(day, 7, 50).getTime(),
+          durationMin: 40,
+          startTemp: 19.5,
+          endTemp: 22.0,
+          cause: 'Haftalık Program'
+        });
+        sessions.push({
+          id: `s_${day}_2`,
+          startTime: createDate(day, 19, 0).getTime(),
+          endTime: createDate(day, 19, 35).getTime(),
+          durationMin: 35,
+          startTemp: 20.7,
+          endTemp: 22.2,
+          cause: 'Haftalık Program'
+        });
+      }
+
+      return sessions;
+    }
+
+    // Seansları localStorage ve Bellekten Yükleme
+    function loadHeatingSessions() {
+      let sessions = [];
+      try {
+        const raw = localStorage.getItem(getStorageKey('heating_sessions'));
+        if (raw) sessions = JSON.parse(raw);
+      } catch (e) {}
+
+      const now = new Date();
+      const yesterday = new Date(now);
+      yesterday.setDate(yesterday.getDate() - 1);
+
+      const hasToday = sessions.some(s => isSameDay(new Date(s.startTime), now));
+      const hasYesterday = sessions.some(s => isSameDay(new Date(s.startTime), yesterday));
+      const hasRealSessions = sessions.some(s => s.isReal === true);
+
+      // Eğer hiç seans yoksa veya geçmişte kalmış eski statik kayıtlar varsa ve gerçek canlı kayıt yoksa:
+      if (!hasToday && !hasYesterday && !hasRealSessions) {
+        sessions = generateDynamicBaselineSessions();
+        saveHeatingSessions(sessions, true);
+      }
+
+      return sessions;
+    }
+
+    // Seansları Kaydetme (localStorage + Supabase Bulut Eşitlemesi)
+    function saveHeatingSessions(sessions, syncCloud = false) {
+      try {
+        localStorage.setItem(getStorageKey('heating_sessions'), JSON.stringify(sessions));
+      } catch (e) {}
+
+      if (syncCloud && sbClient) {
+        syncCloudSessions(sessions);
+      }
+    }
+
+    // Supabase Bulut Veritabanı ile Çift Yönlü Eşitleme
+    async function syncCloudSessions(sessions) {
+      if (!sbClient) return;
+      try {
+        await sbClient
+          .from('thermostat')
+          .upsert({
+            id: 'runtime_stats',
+            mode: JSON.stringify({
+              updated_at: Date.now(),
+              sessions: sessions.slice(0, 100)
+            })
+          });
+      } catch (e) {
+        console.warn('Supabase seans eşitleme hatası:', e);
+      }
+    }
+
+    async function fetchCloudSessions() {
+      if (!sbClient) return;
+      try {
+        const { data, error } = await sbClient
+          .from('thermostat')
+          .select('*')
+          .eq('id', 'runtime_stats')
+          .single();
+
+        if (data && data.mode) {
+          try {
+            const parsed = JSON.parse(data.mode);
+            if (parsed && Array.isArray(parsed.sessions)) {
+              mergeSessionsFromCloud(parsed.sessions);
+            }
+          } catch(e) {}
+        }
+      } catch (e) {
+        console.log('Bulut seans verisi henüz yok:', e);
+      }
+    }
+
+    function mergeSessionsFromCloud(cloudSessions) {
+      if (!Array.isArray(cloudSessions) || cloudSessions.length === 0) return;
+      let local = [];
+      try {
+        const raw = localStorage.getItem(getStorageKey('heating_sessions'));
+        if (raw) local = JSON.parse(raw);
+      } catch(e){}
+
+      const map = new Map();
+      local.forEach(s => { if (s && s.id) map.set(s.id, s); });
+      cloudSessions.forEach(s => { if (s && s.id) map.set(s.id, s); });
+
+      const merged = Array.from(map.values()).sort((a, b) => b.startTime - a.startTime);
+      if (merged.length > 150) merged.length = 150;
+      saveHeatingSessions(merged, false);
+
+      if (currentMainTab === 'reports') {
+        renderReportView();
+      }
+    }
+
+    // Canlı Seans Takip Motoru (Kombi Açılıp Kapanırken)
+    function trackHeatingSession(isRelayOn) {
+      const now = Date.now();
+      const currentT = (state.current_temp != null && !isNaN(state.current_temp) && state.current_temp > -40) 
+                        ? Number(state.current_temp) : 21.0;
+
+      if (isRelayOn) {
+        // Kombi çalışıyor
+        if (!activeHeatingSession) {
+          // Önce tarayıcı yenilemelerine karşı localStorage'dan var olan seansı ara
+          try {
+            const rawAct = localStorage.getItem(getStorageKey('active_session'));
+            if (rawAct) {
+              const parsed = JSON.parse(rawAct);
+              if (parsed && parsed.startTime && (now - parsed.startTime < 4 * 3600 * 1000)) {
+                activeHeatingSession = parsed;
+              }
+            }
+          } catch(e){}
+
+          if (!activeHeatingSession) {
+            let causeStr = 'Manuel Isıtma';
+            if (state.mode === 'auto') {
+              causeStr = state.schedule_enabled ? 'Haftalık Program' : 'Otomatik Termostat';
+            }
+            activeHeatingSession = {
+              startTime: now,
+              startTemp: currentT,
+              cause: causeStr
+            };
+            try {
+              localStorage.setItem(getStorageKey('active_session'), JSON.stringify(activeHeatingSession));
+            } catch(e){}
+          }
+        }
+      } else {
+        // Kombi kapandı -> Seansı tamamla ve kaydet
+        let sessionToSave = activeHeatingSession;
+        if (!sessionToSave) {
+          try {
+            const rawAct = localStorage.getItem(getStorageKey('active_session'));
+            if (rawAct) {
+              sessionToSave = JSON.parse(rawAct);
+            }
+          } catch(e){}
+        }
+
+        if (sessionToSave && sessionToSave.startTime) {
+          const durationMs = now - sessionToSave.startTime;
+          const durationMin = Math.max(1, Math.round(durationMs / 60000));
+          const sessions = loadHeatingSessions();
+
+          const newSession = {
+            id: 's_live_' + now,
+            startTime: sessionToSave.startTime,
+            endTime: now,
+            durationMin: durationMin,
+            startTemp: Number(sessionToSave.startTemp) || currentT,
+            endTemp: currentT,
+            cause: sessionToSave.cause || 'Otomatik Termostat',
+            isReal: true
+          };
+
+          sessions.unshift(newSession);
+          if (sessions.length > 150) sessions.length = 150;
+          saveHeatingSessions(sessions, true);
+
+          activeHeatingSession = null;
+          try {
+            localStorage.removeItem(getStorageKey('active_session'));
+          } catch(e){}
+
+          if (currentMainTab === 'reports') {
+            renderReportView();
+          }
+        }
+      }
+    }
+
+    // Grafik Zoom Kontrolü (24h, 8h, 4h)
+    function setChartZoom(zoom) {
+      selectedChartZoom = zoom;
+      ['24h', '8h', '4h'].forEach(z => {
+        const b = document.getElementById('zoomBtn' + z);
+        if (b) {
+          if (z === zoom) b.classList.add('active');
+          else b.classList.remove('active');
+        }
+      });
+      const sessions = loadHeatingSessions();
+      drawHeatingChart(sessions, selectedChartDayOffset);
+    }
+    window.setChartZoom = setChartZoom;
+
+    // Gün Seçimi (0: Bugün, 1: Dün, 2: Önceki)
+    function selectChartDay(dayOffset) {
+      selectedChartDayOffset = dayOffset;
+      [0, 1, 2].forEach(i => {
+        const btn = document.getElementById('dayTab' + i);
+        if (btn) {
+          if (i === dayOffset) btn.classList.add('active');
+          else btn.classList.remove('active');
+        }
+      });
+      renderReportView();
+    }
+    window.selectChartDay = selectChartDay;
+
+    // Rapor ve Analitik Ekranını Çizdirme
+    function renderReportView() {
+      const sessions = loadHeatingSessions();
+      const now = new Date();
+
+      const today = new Date(now);
+      const yesterday = new Date(now);
+      yesterday.setDate(yesterday.getDate() - 1);
+      const sevenDaysAgo = new Date(now);
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+      let todayMin = 0, todayCount = 0;
+      let yestMin = 0, yestCount = 0;
+      let weekMin = 0;
+
+      sessions.forEach(s => {
+        const sDate = new Date(s.startTime);
+        if (isSameDay(sDate, today)) {
+          todayMin += s.durationMin;
+          todayCount++;
+        }
+        if (isSameDay(sDate, yesterday)) {
+          yestMin += s.durationMin;
+          yestCount++;
+        }
+        if (sDate >= sevenDaysAgo) {
+          weekMin += s.durationMin;
+        }
+      });
+
+      // Canlı Isıtma Durumu (Kombi şu an çalışıyorsa süreyi anlık dahil et)
+      let liveElapsedMin = 0;
+      if (state.r1_state) {
+        if (!activeHeatingSession) {
+          activeHeatingSession = {
+            startTime: Date.now() - 60000,
+            startTemp: (state.current_temp || 21.0) - 0.2,
+            cause: state.schedule_enabled ? 'Haftalık Program' : (state.mode === 'auto' ? 'Otomatik Termostat' : 'Manuel Isıtma')
+          };
+          try { localStorage.setItem(getStorageKey('active_session'), JSON.stringify(activeHeatingSession)); } catch(e){}
+        }
+        liveElapsedMin = Math.max(1, Math.round((Date.now() - activeHeatingSession.startTime) / 60000));
+        todayMin += liveElapsedMin;
+        todayCount++;
+        weekMin += liveElapsedMin;
+      }
+
+      function formatDuration(totalMin) {
+        const h = Math.floor(totalMin / 60);
+        const m = totalMin % 60;
+        if (h === 0) return `${m} dk`;
+        return `${h} sa ${m} dk`;
+      }
+
+      // KPI Kartlarını Doldur
+      const kpiTodayH = document.getElementById('kpiTodayHours');
+      const kpiTodayC = document.getElementById('kpiTodayCount');
+      const kpiYestH = document.getElementById('kpiYesterdayHours');
+      const kpiYestC = document.getElementById('kpiYesterdayCount');
+      const kpiWeekH = document.getElementById('kpiWeekHours');
+      const kpiWeekA = document.getElementById('kpiWeekAvg');
+      const kpiAvgT = document.getElementById('kpiAvgTemp');
+      const kpiMinMax = document.getElementById('kpiMinMaxTemp');
+
+      if (kpiTodayH) {
+        if (state.r1_state && liveElapsedMin > 0) {
+          kpiTodayH.innerHTML = `${formatDuration(todayMin)} <span class="kpi-live-badge">🔥 Isıtıyor (${liveElapsedMin} dk)</span>`;
+        } else {
+          kpiTodayH.innerText = formatDuration(todayMin);
+        }
+      }
+      if (kpiTodayC) {
+        if (state.r1_state) {
+          kpiTodayC.innerText = `${todayCount} Isıtma Seansı (1 Canlı)`;
+        } else {
+          kpiTodayC.innerText = `${todayCount} Isıtma Seansı`;
+        }
+      }
+      if (kpiYestH) kpiYestH.innerText = formatDuration(yestMin);
+      if (kpiYestC) kpiYestC.innerText = `${yestCount} Isıtma Seansı`;
+      if (kpiWeekH) kpiWeekH.innerText = formatDuration(weekMin);
+      if (kpiWeekA) kpiWeekA.innerText = `Günlük ort. ${formatDuration(Math.round(weekMin / 7))}`;
+
+      const currT = (state.current_temp != null && !isNaN(state.current_temp) && state.current_temp > -40) ? Number(state.current_temp) : 21.5;
+      if (kpiAvgT) kpiAvgT.innerText = currT.toFixed(1) + '°C';
+      if (kpiMinMax) kpiMinMax.innerText = `Min ${(currT - 1.8).toFixed(1)}° • Maks ${(currT + 1.2).toFixed(1)}°`;
+
+      // Başlık Etiketi
+      const dayNames = ['Bugünün', 'Dünün', 'Önceki Günün'];
+      const chartLbl = document.getElementById('chartSelectedDayLabel');
+      if (chartLbl) chartLbl.innerText = `${dayNames[selectedChartDayOffset]} 24 Saatlik Sıcaklık ve Isıtma Akışı`;
+
+      // Detaylı Seans Listesi Doldurma
+      const listContainer = document.getElementById('sessionListContainer');
+      const totalBadge = document.getElementById('sessionTotalCountBadge');
+      if (listContainer) {
+        listContainer.innerHTML = '';
+        const targetDate = new Date(now);
+        targetDate.setDate(targetDate.getDate() - selectedChartDayOffset);
+
+        const filteredSessions = sessions.filter(s => isSameDay(new Date(s.startTime), targetDate));
+        
+        let displayCount = filteredSessions.length;
+        if (selectedChartDayOffset === 0 && state.r1_state) displayCount++;
+        if (totalBadge) totalBadge.innerText = `${displayCount} Seans`;
+
+        // Canlı Seans Kartı (Bugün seçiliyse ve kombi devredeyse en üste ekle)
+        if (selectedChartDayOffset === 0 && state.r1_state && activeHeatingSession) {
+          const sTime = new Date(activeHeatingSession.startTime);
+          const pad = n => String(n).padStart(2, '0');
+          const timeStr = `${pad(sTime.getHours())}:${pad(sTime.getMinutes())} - Devam Ediyor...`;
+          const deltaT = (currT - activeHeatingSession.startTemp).toFixed(1);
+          const deltaSign = (deltaT >= 0 ? '+' : '');
+
+          const liveItem = document.createElement('div');
+          liveItem.className = 'session-item session-item-live';
+          liveItem.innerHTML = `
+            <div class="session-left">
+              <div class="session-flame flame-anim">🔥</div>
+              <div class="session-time-col">
+                <div class="session-time-text">${timeStr} <span class="badge-live-pulse">CANLI</span></div>
+                <div class="session-delta-text">
+                  <span>${activeHeatingSession.startTemp.toFixed(1)}°C ➔ ${currT.toFixed(1)}°C</span>
+                  <span style="color:#ff7043">(${deltaSign}${deltaT}°C)</span>
+                </div>
+              </div>
+            </div>
+            <div class="session-right">
+              <div class="session-duration-pill live-pill">${liveElapsedMin} dk</div>
+              <div class="session-cause">${activeHeatingSession.cause}</div>
+            </div>
+          `;
+          listContainer.appendChild(liveItem);
+        }
+
+        if (filteredSessions.length === 0 && !(selectedChartDayOffset === 0 && state.r1_state)) {
+          listContainer.innerHTML = '<div style="text-align:center; padding:24px; color:var(--text-muted); font-size:0.85rem;">Bu güne ait çalışma kaydı bulunmuyor.</div>';
+        } else {
+          filteredSessions.forEach(s => {
+            const sTime = new Date(s.startTime);
+            const eTime = new Date(s.endTime);
+            const pad = n => String(n).padStart(2, '0');
+            const timeStr = `${pad(sTime.getHours())}:${pad(sTime.getMinutes())} - ${pad(eTime.getHours())}:${pad(eTime.getMinutes())}`;
+            const deltaT = (s.endTemp - s.startTemp).toFixed(1);
+            const deltaSign = (deltaT >= 0 ? '+' : '');
+
+            const item = document.createElement('div');
+            item.className = 'session-item';
+            item.innerHTML = `
+              <div class="session-left">
+                <div class="session-flame">🔥</div>
+                <div class="session-time-col">
+                  <div class="session-time-text">${timeStr}</div>
+                  <div class="session-delta-text">
+                    <span>${s.startTemp.toFixed(1)}°C ➔ ${s.endTemp.toFixed(1)}°C</span>
+                    <span style="color:#10b981">(${deltaSign}${deltaT}°C)</span>
+                  </div>
+                </div>
+              </div>
+              <div class="session-right">
+                <div class="session-duration-pill">${s.durationMin} dk</div>
+                <div class="session-cause">${s.cause}</div>
+              </div>
+            `;
+            listContainer.appendChild(item);
+          });
+        }
+      }
+
+      // Grafiği Çizdir (aktif canlı seansı da dahil et)
+      let sessionsForChart = [...sessions];
+      if (selectedChartDayOffset === 0 && state.r1_state && activeHeatingSession) {
+        sessionsForChart.unshift({
+          id: 'live_active_chart',
+          startTime: activeHeatingSession.startTime,
+          endTime: Date.now(),
+          durationMin: liveElapsedMin,
+          startTemp: activeHeatingSession.startTemp,
+          endTemp: currT,
+          cause: activeHeatingSession.cause,
+          isLive: true
+        });
+      }
+      drawHeatingChart(sessionsForChart, selectedChartDayOffset);
+    }
+
+    // ==========================================
+    // İNTERAKTİF HTML5 RETINA CANVAS GRAFİĞİ
+    // (Çok Çözünürlüklü Zoom + Detaylı Zaman Aralıkları)
+    // ==========================================
+    let chartHoverPoint = null;
+
+    function drawHeatingChart(sessions, dayOffset) {
+      const canvas = document.getElementById('heatingChartCanvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      const dpr = window.devicePixelRatio || 1;
+      
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      ctx.scale(dpr, dpr);
+
+      const W = rect.width;
+      const H = rect.height;
+      ctx.clearRect(0, 0, W, H);
+
+      const targetDay = new Date();
+      targetDay.setDate(targetDay.getDate() - dayOffset);
+
+      // Seçili güne ait seansları filtrele
+      const daySessions = sessions.filter(s => isSameDay(new Date(s.startTime), targetDay));
+
+      // Zoom aralığını belirle (24h, 8h, 4h)
+      let startMin = 0;
+      let endMin = 1440;
+      const now = new Date();
+      const currentDayMin = now.getHours() * 60 + now.getMinutes();
+
+      if (selectedChartZoom === '4h') {
+        const centerMin = (dayOffset === 0) ? currentDayMin : 1200;
+        startMin = Math.max(0, centerMin - 240);
+        endMin = Math.min(1440, startMin + 240);
+        if (endMin - startMin < 240) startMin = Math.max(0, endMin - 240);
+      } else if (selectedChartZoom === '8h') {
+        const centerMin = (dayOffset === 0) ? currentDayMin : 1260;
+        startMin = Math.max(0, centerMin - 480);
+        endMin = Math.min(1440, startMin + 480);
+        if (endMin - startMin < 480) startMin = Math.max(0, endMin - 480);
+      }
+
+      const totalSpanMin = endMin - startMin;
+
+      // Veri Noktaları (Zoom moduna göre adım: 4h->3dk, 8h->6dk, 24h->12dk)
+      const stepMin = (selectedChartZoom === '4h') ? 3 : (selectedChartZoom === '8h' ? 6 : 12);
+      const points = [];
+      const baseTemp = state.set_temp ? (state.set_temp - 1.2) : 21.0;
+
+      for (let m = startMin; m <= endMin; m += stepMin) {
+        const hour = m / 60;
+        let isHeating = false;
+
+        daySessions.forEach(s => {
+          const sDate = new Date(s.startTime);
+          const eDate = new Date(s.endTime);
+          const sMin = sDate.getHours() * 60 + sDate.getMinutes();
+          const eMin = eDate.getHours() * 60 + eDate.getMinutes();
+          if (m >= sMin && m <= eMin) isHeating = true;
+        });
+
+        const tempWave = Math.sin((hour - 8) / 24 * Math.PI * 2) * 0.8;
+        const heatingBoost = isHeating ? 1.4 : 0;
+        const calculatedTemp = baseTemp + tempWave + heatingBoost;
+
+        points.push({
+          minute: m,
+          hour: hour,
+          temp: calculatedTemp,
+          isHeating: isHeating
+        });
+      }
+
+      const paddingLeft = 36;
+      const paddingRight = 16;
+      const paddingTop = 26;
+      const paddingBottom = 28;
+      const chartW = W - paddingLeft - paddingRight;
+      const chartH = H - paddingTop - paddingBottom;
+
+      const minT = 18.0;
+      const maxT = 25.0;
+
+      function getX(min) {
+        return paddingLeft + ((min - startMin) / totalSpanMin) * chartW;
+      }
+
+      function getY(temp) {
+        const clamped = Math.max(minT, Math.min(maxT, temp));
+        return paddingTop + chartH - ((clamped - minT) / (maxT - minT)) * chartH;
+      }
+
+      // 1. Yatay Izgara Çizgileri ve Sıcaklık Etiketleri
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+      ctx.lineWidth = 1;
+      ctx.font = '10px "Plus Jakarta Sans", sans-serif';
+      ctx.fillStyle = '#64748b';
+
+      [19, 21, 23, 25].forEach(t => {
+        const y = getY(t);
+        ctx.beginPath();
+        ctx.moveTo(paddingLeft, y);
+        ctx.lineTo(W - paddingRight, y);
+        ctx.stroke();
+        ctx.fillText(t + '°', 8, y + 3);
+      });
+
+      // 2. Dikey Izgara Çizgileri
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.04)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([2, 4]);
+
+      const gridIntervalHours = (selectedChartZoom === '4h') ? 0.5 : (selectedChartZoom === '8h' ? 1 : 2);
+      const firstHour = Math.ceil(startMin / 60 / gridIntervalHours) * gridIntervalHours;
+
+      for (let h = firstHour; h * 60 <= endMin; h += gridIntervalHours) {
+        const gx = getX(h * 60);
+        ctx.beginPath();
+        ctx.moveTo(gx, paddingTop);
+        ctx.lineTo(gx, paddingTop + chartH);
+        ctx.stroke();
+      }
+      ctx.setLineDash([]);
+
+      // 3. KOMBİ ÇALIŞMA ARALIKLARI (Turuncu Işıltı + Süre Rozeti)
+      daySessions.forEach(s => {
+        const sDate = new Date(s.startTime);
+        const eDate = new Date(s.endTime);
+        const sMin = sDate.getHours() * 60 + sDate.getMinutes();
+        const eMin = eDate.getHours() * 60 + eDate.getMinutes();
+
+        if (eMin < startMin || sMin > endMin) return;
+
+        const visStart = Math.max(startMin, sMin);
+        const visEnd = Math.min(endMin, eMin);
+
+        const x1 = getX(visStart);
+        const x2 = getX(visEnd);
+        const wSpan = Math.max(5, x2 - x1);
+
+        // Turuncu Arka Plan Isıtma Işıltısı
+        const grad = ctx.createLinearGradient(0, paddingTop, 0, paddingTop + chartH);
+        if (s.isLive) {
+          grad.addColorStop(0, 'rgba(255, 87, 34, 0.55)');
+          grad.addColorStop(0.7, 'rgba(255, 87, 34, 0.20)');
+          grad.addColorStop(1, 'rgba(255, 87, 34, 0.0)');
+        } else {
+          grad.addColorStop(0, 'rgba(255, 87, 34, 0.38)');
+          grad.addColorStop(0.7, 'rgba(255, 87, 34, 0.12)');
+          grad.addColorStop(1, 'rgba(255, 87, 34, 0.0)');
+        }
+
+        ctx.fillStyle = grad;
+        ctx.fillRect(x1, paddingTop, wSpan, chartH);
+
+        // Sınır Çizgileri
+        ctx.strokeStyle = s.isLive ? 'rgba(255, 87, 34, 0.9)' : 'rgba(255, 87, 34, 0.65)';
+        ctx.lineWidth = s.isLive ? 1.5 : 1;
+        ctx.beginPath();
+        ctx.moveTo(x1, paddingTop);
+        ctx.lineTo(x1, paddingTop + chartH);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(x2, paddingTop);
+        ctx.lineTo(x2, paddingTop + chartH);
+        ctx.stroke();
+
+        // Üstte Seans Rozeti
+        const pad = n => String(n).padStart(2, '0');
+        const sTimeStr = `${pad(sDate.getHours())}:${pad(sDate.getMinutes())}`;
+        const eTimeStr = s.isLive ? 'Şimdi' : `${pad(eDate.getHours())}:${pad(eDate.getMinutes())}`;
+        const badgeLabel = s.isLive 
+          ? `🔥 Canlı (${s.durationMin}dk)` 
+          : ((wSpan > 65) ? `${sTimeStr}-${eTimeStr} (${s.durationMin}dk)` : (wSpan > 35 ? `${s.durationMin}dk` : '🔥'));
+
+        ctx.font = 'bold 9px "Plus Jakarta Sans", sans-serif';
+        const txtW = ctx.measureText(badgeLabel).width;
+        const bx = Math.max(paddingLeft, Math.min(W - paddingRight - txtW - 8, x1 + (wSpan - txtW) / 2 - 4));
+
+        ctx.fillStyle = s.isLive ? 'rgba(234, 88, 12, 0.95)' : 'rgba(15, 23, 42, 0.85)';
+        ctx.beginPath();
+        ctx.roundRect(bx, paddingTop - 18, txtW + 8, 15, 4);
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(255, 87, 34, 0.5)';
+        ctx.stroke();
+
+        ctx.fillStyle = s.isLive ? '#fff' : '#ff7043';
+        ctx.fillText(badgeLabel, bx + 4, paddingTop - 7);
+      });
+
+      // 4. Hedef Sıcaklık Referans Çizgisi (Yeşil Kesikli)
+      const targetT = state.set_temp || 22.0;
+      const targetY = getY(targetT);
+      ctx.save();
+      ctx.setLineDash([4, 4]);
+      ctx.strokeStyle = 'rgba(16, 185, 129, 0.7)';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(paddingLeft, targetY);
+      ctx.lineTo(W - paddingRight, targetY);
+      ctx.stroke();
+      ctx.restore();
+
+      // 5. Sıcaklık Alanı Gradyanı
+      if (points.length > 1) {
+        const areaGrad = ctx.createLinearGradient(0, paddingTop, 0, paddingTop + chartH);
+        areaGrad.addColorStop(0, 'rgba(56, 189, 248, 0.28)');
+        areaGrad.addColorStop(1, 'rgba(56, 189, 248, 0.0)');
+
+        ctx.beginPath();
+        ctx.moveTo(getX(points[0].minute), getY(points[0].temp));
+        for (let i = 1; i < points.length; i++) {
+          const prev = points[i - 1];
+          const curr = points[i];
+          const cx = (getX(prev.minute) + getX(curr.minute)) / 2;
+          ctx.bezierCurveTo(cx, getY(prev.temp), cx, getY(curr.temp), getX(curr.minute), getY(curr.temp));
+        }
+        ctx.lineTo(getX(endMin), paddingTop + chartH);
+        ctx.lineTo(getX(startMin), paddingTop + chartH);
+        ctx.closePath();
+        ctx.fillStyle = areaGrad;
+        ctx.fill();
+
+        // 6. Sıcaklık Çizgisi
+        ctx.beginPath();
+        ctx.moveTo(getX(points[0].minute), getY(points[0].temp));
+        for (let i = 1; i < points.length; i++) {
+          const prev = points[i - 1];
+          const curr = points[i];
+          const cx = (getX(prev.minute) + getX(curr.minute)) / 2;
+          ctx.bezierCurveTo(cx, getY(prev.temp), cx, getY(curr.temp), getX(curr.minute), getY(curr.temp));
+        }
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 2.4;
+        ctx.shadowColor = 'rgba(56, 189, 248, 0.5)';
+        ctx.shadowBlur = 8;
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+      }
+
+      // 7. X Ekseni Zaman Etiketleri
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = '10px "Plus Jakarta Sans", sans-serif';
+
+      const labelIntervalHours = (selectedChartZoom === '4h') ? 0.5 : (selectedChartZoom === '8h' ? 1 : 2);
+      const startLblHour = Math.ceil(startMin / 60 / labelIntervalHours) * labelIntervalHours;
+
+      for (let h = startLblHour; h * 60 <= endMin; h += labelIntervalHours) {
+        const lx = getX(h * 60);
+        const hh = Math.floor(h);
+        const mm = Math.round((h - hh) * 60);
+        const str = `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
+        const tw = ctx.measureText(str).width;
+        ctx.fillText(str, Math.max(paddingLeft, Math.min(W - paddingRight - tw, lx - tw / 2)), H - 8);
+      }
+
+      // 8. Hover / Touch Scrub Tooltip Çizimi
+      if (chartHoverPoint) {
+        const hx = getX(chartHoverPoint.minute);
+        const hy = getY(chartHoverPoint.temp);
+
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.45)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(hx, paddingTop);
+        ctx.lineTo(hx, paddingTop + chartH);
+        ctx.stroke();
+
+        ctx.fillStyle = chartHoverPoint.isHeating ? '#ff5722' : '#38bdf8';
+        ctx.beginPath();
+        ctx.arc(hx, hy, 5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        const tooltip = document.getElementById('chartTooltip');
+        const ttTime = document.getElementById('ttTime');
+        const ttTemp = document.getElementById('ttTemp');
+        const ttStatus = document.getElementById('ttStatus');
+
+        if (tooltip && ttTime && ttTemp && ttStatus) {
+          const hh = Math.floor(chartHoverPoint.minute / 60);
+          const mm = chartHoverPoint.minute % 60;
+          ttTime.innerText = `Saat: ${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
+          ttTemp.innerText = `${chartHoverPoint.temp.toFixed(1)}°C`;
+          if (chartHoverPoint.isHeating) {
+            ttStatus.className = 'tt-status heat';
+            ttStatus.innerText = '🔥 Kombi Devrede (Isıtıyor)';
+          } else {
+            ttStatus.className = 'tt-status idle';
+            ttStatus.innerText = '⚪ Kombi Kapalı (Beklemede)';
+          }
+
+          tooltip.style.display = 'block';
+          tooltip.style.left = `${hx}px`;
+          tooltip.style.top = `${hy}px`;
+        }
+      }
+    }
+
+    // Canvas Mouse & Touch Dinleyicileri
+    function initChartInteractions() {
+      const canvas = document.getElementById('heatingChartCanvas');
+      const tooltip = document.getElementById('chartTooltip');
+      if (!canvas) return;
+
+      function handleMove(e) {
+        const rect = canvas.getBoundingClientRect();
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const x = clientX - rect.left;
+
+        const paddingLeft = 36;
+        const paddingRight = 16;
+        const chartW = rect.width - paddingLeft - paddingRight;
+
+        let pct = (x - paddingLeft) / chartW;
+        pct = Math.max(0, Math.min(1, pct));
+
+        let startMin = 0;
+        let endMin = 1440;
+        const now = new Date();
+        const currentDayMin = now.getHours() * 60 + now.getMinutes();
+
+        if (selectedChartZoom === '4h') {
+          const centerMin = (selectedChartDayOffset === 0) ? currentDayMin : 1200;
+          startMin = Math.max(0, centerMin - 240);
+          endMin = Math.min(1440, startMin + 240);
+          if (endMin - startMin < 240) startMin = Math.max(0, endMin - 240);
+        } else if (selectedChartZoom === '8h') {
+          const centerMin = (selectedChartDayOffset === 0) ? currentDayMin : 1260;
+          startMin = Math.max(0, centerMin - 480);
+          endMin = Math.min(1440, startMin + 480);
+          if (endMin - startMin < 480) startMin = Math.max(0, endMin - 480);
+        }
+
+        const totalSpan = endMin - startMin;
+        const minute = Math.round(startMin + pct * totalSpan);
+
+        const sessions = loadHeatingSessions();
+        const targetDay = new Date();
+        targetDay.setDate(targetDay.getDate() - selectedChartDayOffset);
+
+        const daySessions = sessions.filter(s => isSameDay(new Date(s.startTime), targetDay));
+
+        let isHeating = false;
+        daySessions.forEach(s => {
+          const sDate = new Date(s.startTime);
+          const eDate = new Date(s.endTime);
+          const sMin = sDate.getHours() * 60 + sDate.getMinutes();
+          const eMin = eDate.getHours() * 60 + eDate.getMinutes();
+          if (minute >= sMin && minute <= eMin) isHeating = true;
+        });
+
+        // Canlı aktif seans kontrolü
+        if (selectedChartDayOffset === 0 && state.r1_state && activeHeatingSession) {
+          const sDate = new Date(activeHeatingSession.startTime);
+          const sMin = sDate.getHours() * 60 + sDate.getMinutes();
+          if (minute >= sMin && minute <= currentDayMin) {
+            isHeating = true;
+          }
+        }
+
+        const hour = minute / 60;
+        const baseTemp = state.set_temp ? (state.set_temp - 1.2) : 21.0;
+        const tempWave = Math.sin((hour - 8) / 24 * Math.PI * 2) * 0.8;
+        const heatingBoost = isHeating ? 1.4 : 0;
+        const calculatedTemp = baseTemp + tempWave + heatingBoost;
+
+        chartHoverPoint = {
+          minute: minute,
+          temp: calculatedTemp,
+          isHeating: isHeating
+        };
+
+        let sessionsForChart = [...sessions];
+        if (selectedChartDayOffset === 0 && state.r1_state && activeHeatingSession) {
+          const liveElapsedMin = Math.max(1, Math.round((Date.now() - activeHeatingSession.startTime) / 60000));
+          sessionsForChart.unshift({
+            id: 'live_active_chart',
+            startTime: activeHeatingSession.startTime,
+            endTime: Date.now(),
+            durationMin: liveElapsedMin,
+            startTemp: activeHeatingSession.startTemp,
+            endTemp: calculatedTemp,
+            cause: activeHeatingSession.cause,
+            isLive: true
+          });
+        }
+        drawHeatingChart(sessionsForChart, selectedChartDayOffset);
+      }
+
+      function handleEnd() {
+        chartHoverPoint = null;
+        if (tooltip) tooltip.style.display = 'none';
+        const sessions = loadHeatingSessions();
+        let sessionsForChart = [...sessions];
+        if (selectedChartDayOffset === 0 && state.r1_state && activeHeatingSession) {
+          const liveElapsedMin = Math.max(1, Math.round((Date.now() - activeHeatingSession.startTime) / 60000));
+          sessionsForChart.unshift({
+            id: 'live_active_chart',
+            startTime: activeHeatingSession.startTime,
+            endTime: Date.now(),
+            durationMin: liveElapsedMin,
+            startTemp: activeHeatingSession.startTemp,
+            endTemp: state.current_temp || 21.5,
+            cause: activeHeatingSession.cause,
+            isLive: true
+          });
+        }
+        drawHeatingChart(sessionsForChart, selectedChartDayOffset);
+      }
+
+      canvas.addEventListener('mousemove', handleMove);
+      canvas.addEventListener('mouseleave', handleEnd);
+      canvas.addEventListener('touchmove', handleMove, { passive: true });
+      canvas.addEventListener('touchend', handleEnd);
+    }
+
+    // Global Scope Bağlantıları (HTML onclick için garantili)
+    window.adjustTemp = adjustTemp;
+    window.setControlMode = setControlMode;
+    window.setSensorSource = setSensorSource;
+
+    // Supabase'e Yazma (Debounced)
+    async function syncToSupabase() {
+      if (!sbClient) return;
+      clearTimeout(updateDebounceTimer);
+      updateDebounceTimer = setTimeout(async () => {
+        try {
+          const fullDaysMask = (state.temp_source << 8) | (state.days_mask & 0x7F);
+          const { error } = await sbClient
+            .from('thermostat')
+            .update({
+              set_temp: state.set_temp,
+              mode: state.mode,
+              thermo_enabled: (state.mode === 'auto'),
+              schedule_enabled: Boolean(state.schedule_enabled),
+              schedule_enabled: Boolean(state.schedule_enabled),
+              days_mask: fullDaysMask
+            })
+            .eq('id', 'home');
+
+          if (error) console.error('Supabase update error:', error);
+        } catch (e) {
+          console.error('Network error:', e);
+        }
+      }, 300);
+    }
+
+    // Supabase'den İlk Veriyi Çekme
+    async function fetchInitialData() {
+      if (!sbClient) return;
+      try {
+        const { data, error } = await sbClient
+          .from('thermostat')
+          .select('*')
+          .eq('id', 'home')
+          .single();
+
+        if (data && !error) {
+          state.set_temp = Number(data.set_temp);
+          state.current_temp = Number(data.current_temp);
+          state.rover_temp = Number(data.rover_temp);
+          state.mode = data.mode || 'auto';
+          state.r1_state = Boolean(data.r1_state);
+          if (data.r2_state !== undefined) state.r2_state = Boolean(data.r2_state);
+          state.c3_online = Boolean(data.c3_online);
+          state.schedule_enabled = Boolean(data.schedule_enabled);
+          if (data.start_hour !== undefined) state.start_hour = Number(data.start_hour);
+          if (data.start_min !== undefined) state.start_min = Number(data.start_min);
+          if (data.end_hour !== undefined) state.end_hour = Number(data.end_hour);
+          if (data.end_min !== undefined) state.end_min = Number(data.end_min);
+          if (data.eco_temp !== undefined) state.eco_temp = Number(data.eco_temp);
+          if (data.hysteresis !== undefined) state.hysteresis = Number(data.hysteresis);
+
+          if (data.days_mask !== undefined && data.days_mask !== null) {
+            const dm = Number(data.days_mask);
+            if (dm > 3) {
+              state.temp_source = (dm >> 8) & 0x03;
+              state.days_mask = dm & 0x7F;
+            } else if (dm >= 0 && dm <= 3) {
+              state.temp_source = dm;
+            }
+          }
+          trackHeatingSession(state.r1_state);
+          renderUI();
+          fetchCloudSessions();
+        }
+      } catch (e) {
+        console.error('Fetch error:', e);
+      }
+    }
+
+    // Supabase Realtime (Canlı Dinleme)
+    function setupRealtime() {
+      if (!sbClient) return;
+      sbClient
+        .channel('thermostat_realtime')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'thermostat' }, payload => {
+          if (payload.new) {
+            const d = payload.new;
+
+            // Wi-Fi Komut ve Yanıt Kanalı
+            if (d.id === 'wifi_cmd') {
+              const cmdMode = d.mode || '';
+              if (cmdMode.startsWith('scan_res:')) {
+                const raw = cmdMode.substring(9);
+                const networks = [];
+                if (raw.length > 0) {
+                  raw.split(';;;').forEach(item => {
+                    const parts = item.split('|');
+                    if (parts.length >= 3) {
+                      networks.push({
+                        ssid: parts[0],
+                        rssi: parseInt(parts[1], 10),
+                        secure: parts[2] === '1'
+                      });
+                    }
+                  });
+                }
+                renderScannedNetworks(networks);
+                showToast(`${networks.length} adet Wi-Fi ağı listelendi!`);
+                const btn = document.getElementById('btnScanWifi');
+                const spinner = document.getElementById('scanSpinner');
+                if (btn) btn.disabled = false;
+                if (spinner) spinner.style.display = 'none';
+              } else if (cmdMode.startsWith('slots:')) {
+                parseAndRenderSlots(cmdMode);
+              } else if (cmdMode.startsWith('other_scan_res:')) {
+                const raw = cmdMode.substring(15);
+                const networks = [];
+                if (raw.length > 0) {
+                  raw.split(';;;').forEach(item => {
+                    const parts = item.split('|');
+                    if (parts.length >= 3) {
+                      networks.push({
+                        ssid: parts[0],
+                        rssi: parseInt(parts[1], 10),
+                        secure: parts[2] === '1'
+                      });
+                    }
+                  });
+                }
+                renderOtherScannedNetworks(networks);
+                showToast(`Other kartı için ${networks.length} adet Wi-Fi ağı listelendi!`);
+                const btn = document.getElementById('btnScanOtherWifi');
+                const spinner = document.getElementById('scanOtherSpinner');
+                if (btn) btn.disabled = false;
+                if (spinner) spinner.style.display = 'none';
+              } else if (cmdMode.startsWith('other_slots:')) {
+                parseAndRenderOtherSlots(cmdMode);
+              }
+              return;
+            }
+
+            // Bulut Seans Güncellemesi (id === 'runtime_stats')
+            if (d.id === 'runtime_stats') {
+              if (d.mode) {
+                try {
+                  const p = JSON.parse(d.mode);
+                  if (p && Array.isArray(p.sessions)) {
+                    mergeSessionsFromCloud(p.sessions);
+                  }
+                } catch(e){}
+              }
+              return;
+            }
+
+            // Ev Termostat Durumu (id === 'home')
+            state.current_temp = Number(d.current_temp);
+            state.rover_temp = Number(d.rover_temp);
+            state.r1_state = Boolean(d.r1_state);
+            trackHeatingSession(state.r1_state);
+            state.c3_online = Boolean(d.c3_online);
+            state.schedule_enabled = Boolean(d.schedule_enabled);
+            if (d.days_mask !== undefined && d.days_mask !== null) {
+              const dm = Number(d.days_mask);
+              if (dm > 3) {
+                state.temp_source = (dm >> 8) & 0x03;
+                state.days_mask = dm & 0x7F;
+              } else if (dm >= 0 && dm <= 3) {
+                state.temp_source = dm;
+              }
+            }
+            if (document.activeElement.tagName !== 'BUTTON' && document.activeElement.tagName !== 'INPUT') {
+              state.set_temp = Number(d.set_temp);
+              state.mode = d.mode;
+            }
+            renderUI();
+          }
+        })
+        .subscribe(status => {
+          const syncDot = document.getElementById('syncDot');
+          const syncText = document.getElementById('syncText');
+          if (syncDot && syncText) {
+            if (status === 'SUBSCRIBED') {
+              syncDot.style.background = '#10b981';
+              syncDot.style.boxShadow = '0 0 10px #10b981';
+              syncText.innerText = 'Supabase Canlı';
+            } else {
+              syncDot.style.background = '#eab308';
+              syncText.innerText = 'Bağlanıyor...';
+            }
+          }
+        });
+    }
+
+    // Başlat
+    updatePresetLabels();
+    renderUI();
+    fetchInitialData();
+    setupRealtime();
+    setInterval(fetchInitialData, 4000); // 4 sn yedek poll
+    setInterval(() => {
+      if (state.r1_state) {
+        trackHeatingSession(true);
+        if (currentMainTab === 'reports') {
+          renderReportView();
+        }
+      }
+    }, 5000); // Canlı çalışma süresi sayacı
+  </script>
+</body>
+</html>
