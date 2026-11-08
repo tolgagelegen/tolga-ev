@@ -1764,6 +1764,412 @@
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
     }
 
+
+    /* ========================================================
+       YENİ EKLENEN STİLLER: SETUP, KALİBRASYON, İSTASYON UYARI & DETAYLI RAPORLAR
+       ======================================================== */
+    
+    /* İstasyon Enerji Kesintisi ve Çevrimdışı Bildirim Kartı */
+    .station-alert-container {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-bottom: 14px;
+      width: 100%;
+    }
+
+    .station-alert-card {
+      background: linear-gradient(135deg, rgba(239, 68, 68, 0.22), rgba(185, 28, 28, 0.12));
+      border: 1px solid rgba(239, 68, 68, 0.55);
+      border-radius: 16px;
+      padding: 12px 14px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      box-shadow: 0 4px 18px rgba(239, 68, 68, 0.25);
+      animation: alertPulse 2s infinite ease-in-out;
+    }
+
+    .station-alert-card.warning-card {
+      background: linear-gradient(135deg, rgba(245, 158, 11, 0.22), rgba(180, 83, 9, 0.12));
+      border-color: rgba(245, 158, 11, 0.55);
+      box-shadow: 0 4px 18px rgba(245, 158, 11, 0.25);
+    }
+
+    @keyframes alertPulse {
+      0%, 100% { border-color: rgba(239, 68, 68, 0.55); box-shadow: 0 4px 16px rgba(239, 68, 68, 0.2); }
+      50% { border-color: rgba(239, 68, 68, 0.95); box-shadow: 0 4px 24px rgba(239, 68, 68, 0.45); }
+    }
+
+    .alert-icon-box {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      background: rgba(239, 68, 68, 0.25);
+      border: 1px solid rgba(239, 68, 68, 0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.25rem;
+      flex-shrink: 0;
+    }
+
+    .station-alert-card.warning-card .alert-icon-box {
+      background: rgba(245, 158, 11, 0.25);
+      border-color: rgba(245, 158, 11, 0.6);
+    }
+
+    .alert-info-box {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .alert-title {
+      font-size: 0.85rem;
+      font-weight: 800;
+      color: #fee2e2;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .alert-sub {
+      font-size: 0.72rem;
+      color: #fca5a5;
+      line-height: 1.3;
+    }
+
+    /* Rapor Dönem Filtre Butonları */
+    .session-filter-tabs {
+      display: flex;
+      gap: 4px;
+      background: rgba(0, 0, 0, 0.25);
+      padding: 3px;
+      border-radius: 12px;
+      border: 1px solid var(--card-border);
+      overflow-x: auto;
+    }
+
+    .session-filter-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 5px 10px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      white-space: nowrap;
+    }
+
+    .session-filter-btn.active {
+      background: rgba(255, 87, 34, 0.25);
+      color: #ff7043;
+      border: 1px solid rgba(255, 87, 34, 0.45);
+      box-shadow: 0 2px 8px rgba(255, 87, 34, 0.25);
+    }
+
+    /* Günlük Grup Başlığı */
+    .day-group-header {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 12px;
+      padding: 8px 12px;
+      margin-top: 8px;
+      margin-bottom: 4px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .day-group-title {
+      font-size: 0.76rem;
+      font-weight: 800;
+      color: #e2e8f0;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .day-group-stats {
+      font-size: 0.70rem;
+      font-weight: 700;
+      color: var(--text-sub);
+      display: flex;
+      gap: 8px;
+    }
+
+    /* Detaylı Seans Kartı Geliştirmeleri */
+    .session-detail-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.75rem;
+      margin-top: 2px;
+    }
+
+    .temp-transition-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 2px 8px;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      font-size: 0.74rem;
+      font-weight: 700;
+      color: #f1f5f9;
+    }
+
+    .temp-delta-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      padding: 2px 7px;
+      border-radius: 6px;
+      font-size: 0.70rem;
+      font-weight: 800;
+    }
+
+    .temp-delta-badge.heat-up {
+      background: rgba(16, 185, 129, 0.2);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.4);
+    }
+
+    .temp-delta-badge.heat-down {
+      background: rgba(14, 165, 233, 0.2);
+      color: #38bdf8;
+      border: 1px solid rgba(14, 165, 233, 0.4);
+    }
+
+    .session-speed-text {
+      font-size: 0.65rem;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    /* Setup & Kalibrasyon Modalı Stilleri */
+    .setup-section-card {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--card-border);
+      border-radius: 18px;
+      padding: 16px;
+      margin-bottom: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .setup-section-title {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+    }
+
+    .setup-sec-icon {
+      font-size: 1.3rem;
+      line-height: 1;
+    }
+
+    .setup-section-title h4 {
+      font-size: 0.95rem;
+      font-weight: 800;
+      color: #fff;
+      margin: 0;
+    }
+
+    .setup-section-title p {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      margin: 2px 0 0 0;
+    }
+
+    .setup-val-display {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      padding: 4px 2px;
+    }
+
+    .setup-val-large {
+      font-size: 1.4rem;
+      font-weight: 900;
+      color: #ff7043;
+      font-family: 'Outfit', sans-serif;
+    }
+
+    .setup-val-hint {
+      font-size: 0.72rem;
+      color: var(--text-sub);
+      text-align: right;
+    }
+
+    .setup-range-slider {
+      width: 100%;
+      height: 8px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 6px;
+      outline: none;
+      -webkit-appearance: none;
+      cursor: pointer;
+    }
+
+    .setup-range-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: #ff5722;
+      border: 3px solid #fff;
+      box-shadow: 0 0 10px rgba(255, 87, 34, 0.6);
+      cursor: pointer;
+    }
+
+    .setup-quick-pills {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-top: 6px;
+    }
+
+    .setup-pill-btn {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      padding: 6px 10px;
+      color: var(--text-sub);
+      font-size: 0.72rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .setup-pill-btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+    }
+
+    .setup-pill-btn.active {
+      background: rgba(255, 87, 34, 0.2);
+      border-color: rgba(255, 87, 34, 0.5);
+      color: #ff7043;
+    }
+
+    /* Kalibrasyon Kutuları */
+    .calib-box {
+      background: rgba(0, 0, 0, 0.22);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 14px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .calib-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .calib-station-name {
+      font-size: 0.82rem;
+      font-weight: 800;
+      color: #f8fafc;
+    }
+
+    .calib-offset-badge {
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid rgba(16, 185, 129, 0.4);
+      color: #34d399;
+      padding: 3px 8px;
+      border-radius: 8px;
+      font-size: 0.78rem;
+      font-weight: 800;
+      font-family: monospace;
+    }
+
+    .calib-live-preview {
+      display: flex;
+      align-items: center;
+      justify-content: space-around;
+      background: rgba(255, 255, 255, 0.02);
+      border-radius: 10px;
+      padding: 8px 6px;
+    }
+
+    .calib-pv-col {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+    }
+
+    .pv-label {
+      font-size: 0.65rem;
+      color: var(--text-muted);
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .pv-val {
+      font-size: 1.05rem;
+      font-weight: 800;
+      color: #94a3b8;
+    }
+
+    .pv-val.highlight {
+      color: #10b981;
+      font-weight: 900;
+    }
+
+    .pv-arrow {
+      font-size: 1rem;
+      color: var(--text-muted);
+    }
+
+    .calib-step-controls {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .calib-btn {
+      flex: 1;
+      padding: 7px 4px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      color: #e2e8f0;
+      font-size: 0.72rem;
+      font-weight: 800;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.15s ease;
+    }
+
+    .calib-btn:hover {
+      background: rgba(255, 255, 255, 0.12);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    .calib-btn.reset {
+      flex: 1.4;
+      background: rgba(255, 255, 255, 0.08);
+      color: #94a3b8;
+    }
+
+    .strip-dot.red {
+      background: #ef4444 !important;
+      box-shadow: 0 0 10px #ef4444 !important;
+      animation: alertPulse 1.4s infinite !important;
+    }
+
   </style>
 </head>
 <body>
@@ -1773,7 +2179,7 @@
     <header class="header">
       <div class="header-left-col">
         <div class="app-logo-badge">
-          <img src="https://tolga-ev.vercel.app/apple-touch-icon.png" alt="Logo" class="app-logo-img">
+          <img src="apple-touch-icon.png" alt="Logo" class="app-logo-img">
         </div>
         <div class="header-title">
           <span class="brand-badge">ESP32-S3 CLOUD</span>
@@ -1802,15 +2208,22 @@
     <!-- TAB 1: TERMOSTAT (ANA SAYFA) -->
     <div id="viewThermo" class="tab-view active">
 
+    <!-- İstasyon Enerji Kesintisi ve Durum Bildirim Çubuğu -->
+    <div id="stationAlertContainer" class="station-alert-container"></div>
+
     <!-- Quick Actions Navigation Bar -->
     <div class="nav-actions">
       <button class="nav-act-btn" id="btnOpenSchedule" onclick="openScheduleModal()">
         <span>📅</span>
         <span>Haftalık Program</span>
       </button>
+      <button class="nav-act-btn" id="btnOpenSetup" onclick="openSetupModal()">
+        <span>⚙️</span>
+        <span>Setup & Kalibrasyon</span>
+      </button>
       <button class="nav-act-btn" onclick="openWifiModal()">
         <span>📶</span>
-        <span>Kart Wi-Fi Ayarları</span>
+        <span>Cihaz & Wi-Fi</span>
       </button>
     </div>
 
@@ -2092,18 +2505,131 @@
         </div>
       </div>
 
-      <!-- Detaylı Çalışma Kayıtları (Aktivite Listesi) -->
+      <!-- Detaylı Çalışma & Sıcaklık Geçiş Kayıtları -->
       <div class="report-list-card">
-        <div class="report-list-header">
-          <h3>📋 Detaylı Çalışma Kayıtları</h3>
-          <span style="font-size:0.75rem; color:var(--text-muted);" id="sessionTotalCountBadge">0 Kayıt</span>
+        <div class="report-list-header" style="flex-direction: column; align-items: stretch; gap: 8px;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h3>📋 Detaylı Çalışma & Sıcaklık Kayıtları</h3>
+            <span style="font-size:0.75rem; color:var(--text-muted);" id="sessionTotalCountBadge">0 Kayıt</span>
+          </div>
+          <!-- Geriye Dönük Kontrol ve Dönem Filtreleri -->
+          <div class="session-filter-tabs">
+            <button class="session-filter-btn active" id="sfBtnToday" onclick="filterReportSessions('today')">Bugün</button>
+            <button class="session-filter-btn" id="sfBtnYesterday" onclick="filterReportSessions('yesterday')">Dün</button>
+            <button class="session-filter-btn" id="sfBtnWeek" onclick="filterReportSessions('week')">Son 7 Gün</button>
+            <button class="session-filter-btn" id="sfBtnAll" onclick="filterReportSessions('all')">Tüm Geçmiş</button>
+          </div>
         </div>
         <div class="session-list" id="sessionListContainer">
-          <!-- Dinamik Kayıtlar Buraya Gelecek -->
+          <!-- Dinamik Günlük Gruplar ve Seanslar Buraya Gelecek -->
         </div>
       </div>
     </div><!-- /#viewReports -->
 
+  </div>
+
+
+  <!-- MODAL: SİSTEM KURULUMU & KALİBRASYON (SETUP) -->
+  <div class="modal-overlay" id="setupModal">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h2>⚙️ Kurulum & Kalibrasyon (Setup)</h2>
+        <button class="modal-close" onclick="closeModal('setupModal')">✕</button>
+      </div>
+
+      <!-- 1. BÖLÜM: HİSTEREZİS AYARI -->
+      <div class="setup-section-card">
+        <div class="setup-section-title">
+          <span class="setup-sec-icon">🎯</span>
+          <div>
+            <h4>Histerezis Toleransı (°C)</h4>
+            <p>Kombinin gereksiz sık açılıp kapanmasını önleyen hassasiyet toleransı</p>
+          </div>
+        </div>
+
+        <div class="setup-slider-group">
+          <div class="setup-val-display">
+            <span class="setup-val-large" id="setupHystVal">0.4°C</span>
+            <span class="setup-val-hint" id="setupHystHint">Hedef 22.0°C iken kombi 21.6°C'de devreye girer</span>
+          </div>
+          <input type="range" min="0.1" max="2.0" step="0.1" class="setup-range-slider" id="setupHystRange" oninput="onSetupHystSlider(this.value)">
+          <div class="setup-quick-pills">
+            <button type="button" class="setup-pill-btn" onclick="setSetupHyst(0.2)">0.2°C Hassas</button>
+            <button type="button" class="setup-pill-btn active" onclick="setSetupHyst(0.4)">0.4°C Standart</button>
+            <button type="button" class="setup-pill-btn" onclick="setSetupHyst(0.6)">0.6°C Ekonomik</button>
+            <button type="button" class="setup-pill-btn" onclick="setSetupHyst(1.0)">1.0°C Geniş</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. BÖLÜM: SICAKLIK ÖLÇÜM KALİBRASYONU -->
+      <div class="setup-section-card">
+        <div class="setup-section-title">
+          <span class="setup-sec-icon">🌡️</span>
+          <div>
+            <h4>Sıcaklık Ölçüm Kalibrasyonu</h4>
+            <p>Sensörlerin fiziksel referans termometreye göre hassas düzeltmesi</p>
+          </div>
+        </div>
+
+        <!-- Master Sensör Kalibrasyonu -->
+        <div class="calib-box">
+          <div class="calib-header">
+            <span class="calib-station-name">🏠 Master İstasyonu (DS18B20)</span>
+            <span class="calib-offset-badge" id="masterCalibBadge">0.0°C</span>
+          </div>
+          <div class="calib-live-preview">
+            <div class="calib-pv-col">
+              <span class="pv-label">Ham Ölçüm</span>
+              <span class="pv-val" id="masterRawTemp">--.-°C</span>
+            </div>
+            <span class="pv-arrow">➔</span>
+            <div class="calib-pv-col">
+              <span class="pv-label">Kalibre Değer</span>
+              <span class="pv-val highlight" id="masterCalibTemp">--.-°C</span>
+            </div>
+          </div>
+          <div class="calib-step-controls">
+            <button type="button" class="calib-btn" onclick="adjustCalib('master', -0.5)">-0.5</button>
+            <button type="button" class="calib-btn" onclick="adjustCalib('master', -0.1)">-0.1</button>
+            <button type="button" class="calib-btn reset" onclick="setCalib('master', 0.0)">Sıfırla (0.0)</button>
+            <button type="button" class="calib-btn" onclick="adjustCalib('master', 0.1)">+0.1</button>
+            <button type="button" class="calib-btn" onclick="adjustCalib('master', 0.5)">+0.5</button>
+          </div>
+        </div>
+
+        <!-- Other (Rover) Sensör Kalibrasyonu -->
+        <div class="calib-box">
+          <div class="calib-header">
+            <span class="calib-station-name">📡 Other / Oda İstasyonu (Rover NTC)</span>
+            <span class="calib-offset-badge" id="roverCalibBadge">0.0°C</span>
+          </div>
+          <div class="calib-live-preview">
+            <div class="calib-pv-col">
+              <span class="pv-label">Ham Ölçüm</span>
+              <span class="pv-val" id="roverRawTemp">--.-°C</span>
+            </div>
+            <span class="pv-arrow">➔</span>
+            <div class="calib-pv-col">
+              <span class="pv-label">Kalibre Değer</span>
+              <span class="pv-val highlight" id="roverCalibTemp">--.-°C</span>
+            </div>
+          </div>
+          <div class="calib-step-controls">
+            <button type="button" class="calib-btn" onclick="adjustCalib('rover', -0.5)">-0.5</button>
+            <button type="button" class="calib-btn" onclick="adjustCalib('rover', -0.1)">-0.1</button>
+            <button type="button" class="calib-btn reset" onclick="setCalib('rover', 0.0)">Sıfırla (0.0)</button>
+            <button type="button" class="calib-btn" onclick="adjustCalib('rover', 0.1)">+0.1</button>
+            <button type="button" class="calib-btn" onclick="adjustCalib('rover', 0.5)">+0.5</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn btn-secondary" onclick="closeModal('setupModal')">İptal</button>
+        <button class="btn btn-primary" onclick="saveSetupSettings()">💾 Ayarları Kaydet</button>
+      </div>
+    </div>
   </div>
 
   <!-- MODAL 1: MOD SICAKLIKLARINI DEĞİŞTİRME -->
@@ -2473,6 +2999,8 @@
       r1_state: false,
       r2_state: false,
       c3_online: false,
+      rover_online: true,
+      master_online: true,
       schedule_enabled: false,
       days_mask: 127,
       start_hour: 8,
@@ -2482,6 +3010,25 @@
       eco_temp: 19.5,
       hysteresis: 0.4
     };
+
+    // Kalibrasyon Değerleri (Master ve Rover Offset)
+    let calibration = {
+      master: 0.0,
+      rover: 0.0
+    };
+
+    try {
+      const savedCalib = localStorage.getItem('tolga_thermo_calibration');
+      if (savedCalib) {
+        calibration = Object.assign(calibration, JSON.parse(savedCalib));
+      }
+    } catch(e) {}
+
+    let rawMasterTemp = null;
+    let rawRoverTemp = null;
+    let reportPeriodFilter = 'today'; // 'today', 'yesterday', 'week', 'all'
+    let lastMasterHeartbeat = Date.now();
+    let lastRoverHeartbeat = Date.now();
 
     let updateDebounceTimer = null;
 
@@ -2552,6 +3099,147 @@
         showToast(`${target.toFixed(1)}°C seçildi`);
       }
     }
+
+
+    // ==========================================
+    // ⚙️ SETUP & KALİBRASYON YÖNETİMİ
+    // ==========================================
+    let setupTempHyst = 0.4;
+    let setupTempCalib = { master: 0.0, rover: 0.0 };
+
+    function openSetupModal() {
+      setupTempHyst = Number(state.hysteresis) || 0.4;
+      setupTempCalib = { master: calibration.master || 0.0, rover: calibration.rover || 0.0 };
+      
+      const slider = document.getElementById('setupHystRange');
+      if (slider) slider.value = setupTempHyst.toFixed(1);
+      
+      updateSetupHystUI();
+      updateCalibModalPreviews();
+      openModal('setupModal');
+    }
+
+    function onSetupHystSlider(val) {
+      setupTempHyst = parseFloat(val) || 0.4;
+      updateSetupHystUI();
+    }
+
+    function setSetupHyst(val) {
+      setupTempHyst = val;
+      const slider = document.getElementById('setupHystRange');
+      if (slider) slider.value = val.toFixed(1);
+      updateSetupHystUI();
+    }
+
+    function updateSetupHystUI() {
+      const valEl = document.getElementById('setupHystVal');
+      const hintEl = document.getElementById('setupHystHint');
+      if (valEl) valEl.innerText = `${setupTempHyst.toFixed(1)}°C`;
+      if (hintEl) {
+        const target = Number(state.set_temp) || 22.0;
+        const trigger = (target - setupTempHyst).toFixed(1);
+        hintEl.innerText = `Hedef ${target.toFixed(1)}°C iken kombi ${trigger}°C'de devreye girer, ${target.toFixed(1)}°C'de kapanır`;
+      }
+      document.querySelectorAll('.setup-pill-btn').forEach(btn => {
+        const btnVal = parseFloat(btn.innerText);
+        if (Math.abs(btnVal - setupTempHyst) < 0.05) btn.classList.add('active');
+        else btn.classList.remove('active');
+      });
+    }
+
+    function adjustCalib(station, delta) {
+      setupTempCalib[station] = Math.round((setupTempCalib[station] + delta) * 10) / 10;
+      if (setupTempCalib[station] > 5.0) setupTempCalib[station] = 5.0;
+      if (setupTempCalib[station] < -5.0) setupTempCalib[station] = -5.0;
+      updateCalibModalPreviews();
+    }
+
+    function setCalib(station, val) {
+      setupTempCalib[station] = val;
+      updateCalibModalPreviews();
+    }
+
+    function updateCalibModalPreviews() {
+      const mSign = setupTempCalib.master >= 0 ? '+' : '';
+      const rSign = setupTempCalib.rover >= 0 ? '+' : '';
+      
+      const mBadge = document.getElementById('masterCalibBadge');
+      const rBadge = document.getElementById('roverCalibBadge');
+      if (mBadge) mBadge.innerText = `${mSign}${setupTempCalib.master.toFixed(1)}°C`;
+      if (rBadge) rBadge.innerText = `${rSign}${setupTempCalib.rover.toFixed(1)}°C`;
+
+      const mRaw = (rawMasterTemp != null) ? rawMasterTemp : 20.5;
+      const rRaw = (rawRoverTemp != null) ? rawRoverTemp : 17.3;
+
+      const mRawEl = document.getElementById('masterRawTemp');
+      const mCalEl = document.getElementById('masterCalibTemp');
+      if (mRawEl) mRawEl.innerText = `${mRaw.toFixed(1)}°C`;
+      if (mCalEl) mCalEl.innerText = `${(mRaw + setupTempCalib.master).toFixed(1)}°C`;
+
+      const rRawEl = document.getElementById('roverRawTemp');
+      const rCalEl = document.getElementById('roverCalibTemp');
+      if (rRawEl) rRawEl.innerText = `${rRaw.toFixed(1)}°C`;
+      if (rCalEl) rCalEl.innerText = `${(rRaw + setupTempCalib.rover).toFixed(1)}°C`;
+    }
+
+    async function saveSetupSettings() {
+      state.hysteresis = setupTempHyst;
+      calibration = { master: setupTempCalib.master, rover: setupTempCalib.rover };
+
+      // 1. localStorage'a kaydet
+      localStorage.setItem('tolga_thermo_calibration', JSON.stringify(calibration));
+
+      // 2. Supabase'e histerezis güncelle
+      if (sbClient) {
+        sbClient
+          .from('thermostat')
+          .update({ hysteresis: state.hysteresis })
+          .eq('id', 'home')
+          .then();
+
+        // 3. Bulutta calibration'ı runtime_stats JSON içine yaz
+        syncCalibrationToCloud();
+      }
+
+      // 4. Yerel Hub'a da gönder
+      fetch(`/api/thermo_set?hyst=${state.hysteresis}`).catch(()=>{});
+
+      // 5. Sıcaklıkları yeni kalibrasyonla anında yeniden hesapla ve UI güncelle
+      applyCalibratedTemperatures();
+      renderUI();
+      closeModal('setupModal');
+      showToast('Setup ayarları ve kalibrasyon kaydedildi!');
+    }
+
+    async function syncCalibrationToCloud() {
+      if (!sbClient) return;
+      try {
+        const { data } = await sbClient.from('thermostat').select('mode').eq('id', 'runtime_stats').single();
+        let p = {};
+        if (data && data.mode) {
+          try { p = JSON.parse(data.mode); } catch(e){}
+        }
+        p.calibration = calibration;
+        p.updated_at = Date.now();
+        await sbClient.from('thermostat').update({ mode: JSON.stringify(p) }).eq('id', 'runtime_stats');
+      } catch(e) {}
+    }
+
+    function applyCalibratedTemperatures() {
+      if (rawMasterTemp != null && !isNaN(rawMasterTemp) && rawMasterTemp > -40) {
+        state.current_temp = Number((rawMasterTemp + (calibration.master || 0.0)).toFixed(2));
+      }
+      if (rawRoverTemp != null && !isNaN(rawRoverTemp) && rawRoverTemp > -40) {
+        state.rover_temp = Number((rawRoverTemp + (calibration.rover || 0.0)).toFixed(2));
+      }
+    }
+
+    window.openSetupModal = openSetupModal;
+    window.onSetupHystSlider = onSetupHystSlider;
+    window.setSetupHyst = setSetupHyst;
+    window.adjustCalib = adjustCalib;
+    window.setCalib = setCalib;
+    window.saveSetupSettings = saveSetupSettings;
 
     window.openPresetModal = openPresetModal;
     window.saveCustomPresets = saveCustomPresets;
@@ -3745,6 +4433,84 @@
       }
     }
 
+
+    // ==========================================
+    // ⚡ İSTASYON ENERJİ KESİNTİSİ VE ÇEVRİMDIŞI TAKİP MOTORU
+    // ==========================================
+    function checkStationHealth() {
+      const now = Date.now();
+      const masterSecAgo = Math.round((now - lastMasterHeartbeat) / 1000);
+      const isMasterAlive = (masterSecAgo < 15);
+      state.master_online = isMasterAlive;
+
+      const roverSecAgo = Math.round((now - lastRoverHeartbeat) / 1000);
+      const isRoverAlive = (state.rover_online !== false) && (roverSecAgo < 18);
+
+      renderStationAlerts(isMasterAlive, isRoverAlive, masterSecAgo, roverSecAgo);
+      updateDeviceStripHealth(isMasterAlive, isRoverAlive);
+    }
+
+    function renderStationAlerts(masterAlive, roverAlive, masterSecAgo, roverSecAgo) {
+      const container = document.getElementById('stationAlertContainer');
+      if (!container) return;
+
+      let html = '';
+
+      if (!masterAlive) {
+        const timeAgoText = masterSecAgo < 60 ? `${masterSecAgo} sn önce` : `${Math.floor(masterSecAgo/60)} dk önce`;
+        html += `
+          <div class="station-alert-card">
+            <div class="alert-icon-box">⚡</div>
+            <div class="alert-info-box">
+              <div class="alert-title">⚠️ MASTER HUB ENERJİSİ KESİLDİ / ÇEVRİMDIŞI</div>
+              <div class="alert-sub">Kombi kontrol ünitesinden sinyal alınamıyor (Son sinyal: ${timeAgoText}). Cihazın güç adaptörünü veya ev elektriğini kontrol ediniz.</div>
+            </div>
+          </div>
+        `;
+      }
+
+      if (!roverAlive) {
+        html += `
+          <div class="station-alert-card warning-card">
+            <div class="alert-icon-box">📡</div>
+            <div class="alert-info-box">
+              <div class="alert-title">⚠️ OTHER (ODA İSTASYONU) ENERJİSİ KESİLDİ</div>
+              <div class="alert-sub">Oda termostatından kablosuz telsiz sinyali kesildi. Pilini veya adaptör bağlantısını kontrol ediniz.</div>
+            </div>
+          </div>
+        `;
+      }
+
+      container.innerHTML = html;
+    }
+
+    function updateDeviceStripHealth(masterAlive, roverAlive) {
+      const sMasterDot = document.getElementById('stripMasterDot');
+      const sMasterText = document.getElementById('stripMasterText');
+      if (sMasterDot && sMasterText) {
+        if (!masterAlive) {
+          sMasterDot.className = 'strip-dot red';
+          sMasterText.innerText = '🔴 Enerji Kesildi (Çevrimdışı)';
+        } else {
+          sMasterDot.className = 'strip-dot green';
+          sMasterText.innerText = '📶 192.168.1.192';
+        }
+      }
+
+      const sOtherDot = document.getElementById('stripOtherDot');
+      const sOtherText = document.getElementById('stripOtherText');
+      if (sOtherDot && sOtherText) {
+        if (!roverAlive) {
+          sOtherDot.className = 'strip-dot red';
+          sOtherText.innerText = '🔴 Enerji Kesildi (Çevrimdışı)';
+        } else {
+          sOtherDot.className = 'strip-dot green';
+          const rVal = (state.rover_temp != null) ? state.rover_temp.toFixed(1) + '°C' : 'Canlı';
+          sOtherText.innerText = `ESP-NOW (${rVal})`;
+        }
+      }
+    }
+
     // Canlı Seans Takip Motoru (Kombi Açılıp Kapanırken)
     function trackHeatingSession(isRelayOn) {
       const now = Date.now();
@@ -3854,6 +4620,30 @@
     window.selectChartDay = selectChartDay;
 
     // Rapor ve Analitik Ekranını Çizdirme
+    
+    function filterReportSessions(period) {
+      reportPeriodFilter = period;
+      ['sfBtnToday', 'sfBtnYesterday', 'sfBtnWeek', 'sfBtnAll'].forEach(id => {
+        const btn = document.getElementById(id);
+        if (btn) btn.classList.remove('active');
+      });
+      const activeBtnId = {
+        'today': 'sfBtnToday',
+        'yesterday': 'sfBtnYesterday',
+        'week': 'sfBtnWeek',
+        'all': 'sfBtnAll'
+      }[period] || 'sfBtnToday';
+      const ab = document.getElementById(activeBtnId);
+      if (ab) ab.classList.add('active');
+
+      if (period === 'today') selectedChartDayOffset = 0;
+      else if (period === 'yesterday') selectedChartDayOffset = 1;
+
+      renderReportView();
+    }
+    window.filterReportSessions = filterReportSessions;
+
+    // Rapor ve Analitik Ekranını Çizdirme (Gelişmiş Geriye Dönük Kontrol ve Sıcaklık Geçişleri)
     function renderReportView() {
       const sessions = loadHeatingSessions();
       const now = new Date();
@@ -3883,13 +4673,15 @@
         }
       });
 
-      // Canlı Isıtma Durumu (Kombi şu an çalışıyorsa süreyi anlık dahil et)
+      // Canlı Isıtma Durumu
       let liveElapsedMin = 0;
+      const currT = (state.current_temp != null && !isNaN(state.current_temp) && state.current_temp > -40) ? Number(state.current_temp) : 21.5;
+
       if (state.r1_state) {
         if (!activeHeatingSession) {
           activeHeatingSession = {
             startTime: Date.now() - 60000,
-            startTemp: (state.current_temp || 21.0) - 0.2,
+            startTemp: currT - 0.2,
             cause: state.schedule_enabled ? 'Haftalık Program' : (state.mode === 'auto' ? 'Otomatik Termostat' : 'Manuel Isıtma')
           };
           try { localStorage.setItem(getStorageKey('active_session'), JSON.stringify(activeHeatingSession)); } catch(e){}
@@ -3936,36 +4728,51 @@
       if (kpiWeekH) kpiWeekH.innerText = formatDuration(weekMin);
       if (kpiWeekA) kpiWeekA.innerText = `Günlük ort. ${formatDuration(Math.round(weekMin / 7))}`;
 
-      const currT = (state.current_temp != null && !isNaN(state.current_temp) && state.current_temp > -40) ? Number(state.current_temp) : 21.5;
       if (kpiAvgT) kpiAvgT.innerText = currT.toFixed(1) + '°C';
       if (kpiMinMax) kpiMinMax.innerText = `Min ${(currT - 1.8).toFixed(1)}° • Maks ${(currT + 1.2).toFixed(1)}°`;
 
       // Başlık Etiketi
-      const dayNames = ['Bugünün', 'Dünün', 'Önceki Günün'];
       const chartLbl = document.getElementById('chartSelectedDayLabel');
-      if (chartLbl) chartLbl.innerText = `${dayNames[selectedChartDayOffset]} 24 Saatlik Sıcaklık ve Isıtma Akışı`;
+      if (chartLbl) {
+        if (reportPeriodFilter === 'today') chartLbl.innerText = 'Bugünün 24 Saatlik Sıcaklık ve Isıtma Akışı';
+        else if (reportPeriodFilter === 'yesterday') chartLbl.innerText = 'Dünün 24 Saatlik Sıcaklık ve Isıtma Akışı';
+        else if (reportPeriodFilter === 'week') chartLbl.innerText = 'Son 7 Günlük Sıcaklık ve Isıtma Seansları';
+        else chartLbl.innerText = 'Tüm Geçmiş Çalışma ve Sıcaklık Değişim Kayıtları';
+      }
 
-      // Detaylı Seans Listesi Doldurma
+      // Detaylı Seans Listesi Filtreleme (Geriye Dönük Kontrol)
       const listContainer = document.getElementById('sessionListContainer');
       const totalBadge = document.getElementById('sessionTotalCountBadge');
+
       if (listContainer) {
         listContainer.innerHTML = '';
-        const targetDate = new Date(now);
-        targetDate.setDate(targetDate.getDate() - selectedChartDayOffset);
 
-        const filteredSessions = sessions.filter(s => isSameDay(new Date(s.startTime), targetDate));
-        
-        let displayCount = filteredSessions.length;
-        if (selectedChartDayOffset === 0 && state.r1_state) displayCount++;
-        if (totalBadge) totalBadge.innerText = `${displayCount} Seans`;
+        let targetSessions = [];
+        if (reportPeriodFilter === 'today') {
+          targetSessions = sessions.filter(s => isSameDay(new Date(s.startTime), today));
+        } else if (reportPeriodFilter === 'yesterday') {
+          targetSessions = sessions.filter(s => isSameDay(new Date(s.startTime), yesterday));
+        } else if (reportPeriodFilter === 'week') {
+          targetSessions = sessions.filter(s => (now - s.startTime) <= 7 * 86400 * 1000);
+        } else { // 'all'
+          targetSessions = [...sessions];
+        }
 
-        // Canlı Seans Kartı (Bugün seçiliyse ve kombi devredeyse en üste ekle)
-        if (selectedChartDayOffset === 0 && state.r1_state && activeHeatingSession) {
+        let displayTotalCount = targetSessions.length;
+        if ((reportPeriodFilter === 'today' || reportPeriodFilter === 'all') && state.r1_state) {
+          displayTotalCount++;
+        }
+        if (totalBadge) totalBadge.innerText = `${displayTotalCount} Kayıt`;
+
+        // 1. Canlı Çalışan Seans Varsa En Üste Ekle
+        if ((reportPeriodFilter === 'today' || reportPeriodFilter === 'all') && state.r1_state && activeHeatingSession) {
           const sTime = new Date(activeHeatingSession.startTime);
           const pad = n => String(n).padStart(2, '0');
-          const timeStr = `${pad(sTime.getHours())}:${pad(sTime.getMinutes())} - Devam Ediyor...`;
-          const deltaT = (currT - activeHeatingSession.startTemp).toFixed(1);
+          const timeStr = `${pad(sTime.getHours())}:${pad(sTime.getMinutes())} ➔ Devam Ediyor...`;
+          const sTemp = Number(activeHeatingSession.startTemp) || currT;
+          const deltaT = (currT - sTemp).toFixed(1);
           const deltaSign = (deltaT >= 0 ? '+' : '');
+          const isUp = deltaT >= 0;
 
           const liveItem = document.createElement('div');
           liveItem.className = 'session-item session-item-live';
@@ -3973,10 +4780,16 @@
             <div class="session-left">
               <div class="session-flame flame-anim">🔥</div>
               <div class="session-time-col">
-                <div class="session-time-text">${timeStr} <span class="badge-live-pulse">CANLI</span></div>
-                <div class="session-delta-text">
-                  <span>${activeHeatingSession.startTemp.toFixed(1)}°C ➔ ${currT.toFixed(1)}°C</span>
-                  <span style="color:#ff7043">(${deltaSign}${deltaT}°C)</span>
+                <div class="session-time-text">${timeStr} <span class="badge-live-pulse">CANLI ÇALIŞIYOR</span></div>
+                <div class="session-detail-row">
+                  <span class="temp-transition-pill">
+                    <span>${sTemp.toFixed(1)}°C</span>
+                    <span style="color:#ff7043">➔</span>
+                    <span style="color:#fff; font-weight:800;">${currT.toFixed(1)}°C</span>
+                  </span>
+                  <span class="temp-delta-badge ${isUp ? 'heat-up' : 'heat-down'}">
+                    ${isUp ? '▲' : '▼'} ${deltaSign}${deltaT}°C
+                  </span>
                 </div>
               </div>
             </div>
@@ -3988,41 +4801,110 @@
           listContainer.appendChild(liveItem);
         }
 
-        if (filteredSessions.length === 0 && !(selectedChartDayOffset === 0 && state.r1_state)) {
-          listContainer.innerHTML = '<div style="text-align:center; padding:24px; color:var(--text-muted); font-size:0.85rem;">Bu güne ait çalışma kaydı bulunmuyor.</div>';
+        if (targetSessions.length === 0 && !((reportPeriodFilter === 'today' || reportPeriodFilter === 'all') && state.r1_state)) {
+          listContainer.innerHTML = '<div style="text-align:center; padding:32px; color:var(--text-muted); font-size:0.85rem;">Seçilen döneme ait çalışma kaydı bulunmuyor.</div>';
         } else {
-          filteredSessions.forEach(s => {
-            const sTime = new Date(s.startTime);
-            const eTime = new Date(s.endTime);
-            const pad = n => String(n).padStart(2, '0');
-            const timeStr = `${pad(sTime.getHours())}:${pad(sTime.getMinutes())} - ${pad(eTime.getHours())}:${pad(eTime.getMinutes())}`;
-            const deltaT = (s.endTemp - s.startTemp).toFixed(1);
-            const deltaSign = (deltaT >= 0 ? '+' : '');
+          // Seansları Tarihe Göre Gruplandır
+          const groups = {};
+          targetSessions.forEach(s => {
+            const d = new Date(s.startTime);
+            const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+            if (!groups[key]) groups[key] = [];
+            groups[key].push(s);
+          });
 
-            const item = document.createElement('div');
-            item.className = 'session-item';
-            item.innerHTML = `
-              <div class="session-left">
-                <div class="session-flame">🔥</div>
-                <div class="session-time-col">
-                  <div class="session-time-text">${timeStr}</div>
-                  <div class="session-delta-text">
-                    <span>${s.startTemp.toFixed(1)}°C ➔ ${s.endTemp.toFixed(1)}°C</span>
-                    <span style="color:#10b981">(${deltaSign}${deltaT}°C)</span>
-                  </div>
-                </div>
+          // Günleri yeniden eskiye doğru sırala
+          const sortedKeys = Object.keys(groups).sort((a, b) => b.localeCompare(a));
+
+          sortedKeys.forEach(dateKey => {
+            const dayList = groups[dateKey];
+            const dObj = new Date(dayList[0].startTime);
+            
+            // Gün Toplamları
+            let dayTotalMin = 0;
+            let dayMinTemp = 999;
+            let dayMaxTemp = -999;
+            dayList.forEach(s => {
+              dayTotalMin += s.durationMin;
+              if (s.startTemp < dayMinTemp) dayMinTemp = s.startTemp;
+              if (s.endTemp > dayMaxTemp) dayMaxTemp = s.endTemp;
+            });
+
+            // Türkçe Tarih Formatı
+            const daysTr = ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'];
+            const monthsTr = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
+            
+            let dayLabel = `${dObj.getDate()} ${monthsTr[dObj.getMonth()]} ${dObj.getFullYear()} ${daysTr[dObj.getDay()]}`;
+            if (isSameDay(dObj, today)) dayLabel = `Bugün • ${dayLabel}`;
+            else if (isSameDay(dObj, yesterday)) dayLabel = `Dün • ${dayLabel}`;
+
+            // Gün Grubu Başlığı
+            const groupHeader = document.createElement('div');
+            groupHeader.className = 'day-group-header';
+            groupHeader.innerHTML = `
+              <div class="day-group-title">
+                <span>📅</span>
+                <span>${dayLabel}</span>
               </div>
-              <div class="session-right">
-                <div class="session-duration-pill">${s.durationMin} dk</div>
-                <div class="session-cause">${s.cause}</div>
+              <div class="day-group-stats">
+                <span>${dayList.length} Seans</span>
+                <span>•</span>
+                <span style="color:#ff7043; font-weight:800;">Toplam ${formatDuration(dayTotalMin)}</span>
               </div>
             `;
-            listContainer.appendChild(item);
+            listContainer.appendChild(groupHeader);
+
+            // Gündeki Seansları Listele
+            dayList.forEach(s => {
+              const sTime = new Date(s.startTime);
+              const eTime = new Date(s.endTime);
+              const pad = n => String(n).padStart(2, '0');
+              const timeStr = `${pad(sTime.getHours())}:${pad(sTime.getMinutes())} ➔ ${pad(eTime.getHours())}:${pad(eTime.getMinutes())}`;
+              
+              const sT = Number(s.startTemp) || 20.0;
+              const eT = Number(s.endTemp) || 21.0;
+              const deltaT = (eT - sT).toFixed(1);
+              const deltaSign = (deltaT >= 0 ? '+' : '');
+              const isUp = deltaT >= 0;
+
+              // Isınma Hızı Hesabı (°C / 10 dakika)
+              let speedStr = '';
+              if (s.durationMin > 2 && Math.abs(deltaT) > 0.05) {
+                const per10Min = ((deltaT / s.durationMin) * 10).toFixed(1);
+                speedStr = `• Isınma Hızı: ${per10Min > 0 ? '+' : ''}${per10Min}°C/10dk`;
+              }
+
+              const item = document.createElement('div');
+              item.className = 'session-item';
+              item.innerHTML = `
+                <div class="session-left">
+                  <div class="session-flame">🔥</div>
+                  <div class="session-time-col">
+                    <div class="session-time-text">${timeStr}</div>
+                    <div class="session-detail-row">
+                      <span class="temp-transition-pill">
+                        <span>${sT.toFixed(1)}°C</span>
+                        <span style="color:#ff7043">➔</span>
+                        <span style="color:#fff; font-weight:800;">${eT.toFixed(1)}°C</span>
+                      </span>
+                      <span class="temp-delta-badge ${isUp ? 'heat-up' : 'heat-down'}">
+                        ${isUp ? '▲' : '▼'} ${deltaSign}${deltaT}°C
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <div class="session-right">
+                  <div class="session-duration-pill">${formatDuration(s.durationMin)}</div>
+                  <div class="session-cause">${s.cause} ${speedStr}</div>
+                </div>
+              `;
+              listContainer.appendChild(item);
+            });
           });
         }
       }
 
-      // Grafiği Çizdir (aktif canlı seansı da dahil et)
+      // Grafiği Çizdir
       let sessionsForChart = [...sessions];
       if (selectedChartDayOffset === 0 && state.r1_state && activeHeatingSession) {
         sessionsForChart.unshift({
@@ -4039,13 +4921,7 @@
       drawHeatingChart(sessionsForChart, selectedChartDayOffset);
     }
 
-    // ==========================================
-    // İNTERAKTİF HTML5 RETINA CANVAS GRAFİĞİ
-    // (Çok Çözünürlüklü Zoom + Detaylı Zaman Aralıkları)
-    // ==========================================
-    let chartHoverPoint = null;
-
-    function drawHeatingChart(sessions, dayOffset) {
+function drawHeatingChart(sessions, dayOffset) {
       const canvas = document.getElementById('heatingChartCanvas');
       if (!canvas) return;
       const ctx = canvas.getContext('2d');
@@ -4504,9 +5380,18 @@
           .single();
 
         if (data && !error) {
+          lastMasterHeartbeat = Date.now();
+          state.master_online = true;
+          if (data.rover_online !== undefined) {
+            state.rover_online = Boolean(data.rover_online);
+            if (state.rover_online) lastRoverHeartbeat = Date.now();
+          }
+
           state.set_temp = Number(data.set_temp);
-          state.current_temp = Number(data.current_temp);
-          state.rover_temp = Number(data.rover_temp);
+          rawMasterTemp = Number(data.current_temp);
+          rawRoverTemp = Number(data.rover_temp);
+          applyCalibratedTemperatures();
+
           state.mode = data.mode || 'auto';
           state.r1_state = Boolean(data.r1_state);
           if (data.r2_state !== undefined) state.r2_state = Boolean(data.r2_state);
@@ -4599,11 +5484,15 @@
               return;
             }
 
-            // Bulut Seans Güncellemesi (id === 'runtime_stats')
+            // Bulut Seans & Kalibrasyon Güncellemesi (id === 'runtime_stats')
             if (d.id === 'runtime_stats') {
               if (d.mode) {
                 try {
                   const p = JSON.parse(d.mode);
+                  if (p && p.calibration) {
+                    calibration = Object.assign(calibration, p.calibration);
+                    applyCalibratedTemperatures();
+                  }
                   if (p && Array.isArray(p.sessions)) {
                     mergeSessionsFromCloud(p.sessions);
                   }
@@ -4613,8 +5502,17 @@
             }
 
             // Ev Termostat Durumu (id === 'home')
-            state.current_temp = Number(d.current_temp);
-            state.rover_temp = Number(d.rover_temp);
+            lastMasterHeartbeat = Date.now();
+            state.master_online = true;
+            if (d.rover_online !== undefined) {
+              state.rover_online = Boolean(d.rover_online);
+              if (state.rover_online) lastRoverHeartbeat = Date.now();
+            }
+
+            rawMasterTemp = Number(d.current_temp);
+            rawRoverTemp = Number(d.rover_temp);
+            applyCalibratedTemperatures();
+
             state.r1_state = Boolean(d.r1_state);
             trackHeatingSession(state.r1_state);
             state.c3_online = Boolean(d.c3_online);
@@ -4657,6 +5555,7 @@
     fetchInitialData();
     setupRealtime();
     setInterval(fetchInitialData, 4000); // 4 sn yedek poll
+    setInterval(checkStationHealth, 2500); // İstasyon enerji kesintisi ve çevrimdışı takip
     setInterval(() => {
       if (state.r1_state) {
         trackHeatingSession(true);
