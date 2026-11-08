@@ -3226,10 +3226,15 @@
     }
 
     function applyCalibratedTemperatures() {
-      if (rawMasterTemp != null && !isNaN(rawMasterTemp) && rawMasterTemp > -40) {
+      if (!state.master_online || rawMasterTemp == null || isNaN(rawMasterTemp) || rawMasterTemp <= 0) {
+        state.current_temp = 0.0;
+      } else {
         state.current_temp = Number((rawMasterTemp + (calibration.master || 0.0)).toFixed(2));
       }
-      if (rawRoverTemp != null && !isNaN(rawRoverTemp) && rawRoverTemp > -40) {
+
+      if (!state.master_online || !state.rover_online || rawRoverTemp == null || isNaN(rawRoverTemp) || rawRoverTemp <= 0) {
+        state.rover_temp = 0.0;
+      } else {
         state.rover_temp = Number((rawRoverTemp + (calibration.rover || 0.0)).toFixed(2));
       }
     }
@@ -3915,8 +3920,8 @@
       let activeAmbient = null;
       let sourceTagName = 'Otomatik';
 
-      const isMasterAlive = (state.master_online !== false);
-      const isRoverAlive = (state.rover_online !== false);
+      const isMasterAlive = (state.master_online === true);
+      const isRoverAlive = isMasterAlive && (state.rover_online === true);
 
       // Canlı okuma kesildiğinde (enerji kesintisinde) 0 göster
       const hubVal = isMasterAlive 
@@ -4521,21 +4526,27 @@
     // ==========================================
     function checkStationHealth() {
       const now = Date.now();
-      const masterSecAgo = Math.round((now - lastMasterHeartbeat) / 1000);
-      const isMasterAlive = (masterSecAgo < 15);
-      const prevMasterOnline = state.master_online;
+      const masterSecAgo = lastMasterHeartbeat ? Math.round((now - lastMasterHeartbeat) / 1000) : 999;
+      // Master her 3 saniyede bir PATCH atar. 6 saniye sinyal gelmezse enerji kesildi kabul et
+      const isMasterAlive = (lastMasterHeartbeat > 0 && masterSecAgo <= 6);
       state.master_online = isMasterAlive;
 
-      const roverSecAgo = Math.round((now - lastRoverHeartbeat) / 1000);
-      const isRoverAlive = (state.rover_online !== false) && (roverSecAgo < 18);
-      const prevRoverOnline = state.rover_online;
+      const roverSecAgo = lastRoverHeartbeat ? Math.round((now - lastRoverHeartbeat) / 1000) : 999;
+      const isRoverAlive = isMasterAlive && (state.rover_online === true) && (lastRoverHeartbeat > 0 && roverSecAgo <= 8);
       state.rover_online = isRoverAlive;
 
-      // İstasyon enerji durumu değiştiğinde ekranı anında yeniden çizdir (0.0°C güncellemesi)
-      if (prevMasterOnline !== isMasterAlive || prevRoverOnline !== isRoverAlive) {
-        renderUI();
+      if (!isMasterAlive) {
+        state.current_temp = 0.0;
+        state.rover_temp = 0.0;
+        rawMasterTemp = 0.0;
+        rawRoverTemp = 0.0;
+      } else if (!isRoverAlive) {
+        state.rover_temp = 0.0;
+        rawRoverTemp = 0.0;
       }
 
+      // Her kontrolde ekranı ve uyarıları tazele
+      renderUI();
       renderStationAlerts(isMasterAlive, isRoverAlive, masterSecAgo, roverSecAgo);
       updateDeviceStripHealth(isMasterAlive, isRoverAlive);
     }
@@ -5459,7 +5470,10 @@ function drawHeatingChart(sessions, dayOffset) {
       }, 300);
     }
 
-    // Supabase'den İlk Veriyi Çekme
+    let lastSeenDbUpdatedAt = null;
+    let lastSeenDbUpdatedTime = 0;
+
+    // Supabase'den Canlı Durum ve Veriyi Çekme
     async function fetchInitialData() {
       if (!sbClient) return;
       try {
@@ -5470,16 +5484,49 @@ function drawHeatingChart(sessions, dayOffset) {
           .single();
 
         if (data && !error) {
-          lastMasterHeartbeat = Date.now();
-          state.master_online = true;
-          if (data.rover_online !== undefined) {
+          const now = Date.now();
+          const dbUpdatedIso = data.updated_at || '';
+
+          // 1. Master Hub aktif olarak veritabanına yazıyor mu?
+          let isMasterRecentlyAlive = false;
+          if (dbUpdatedIso) {
+            const rowEpoch = new Date(dbUpdatedIso).getTime();
+            const ageSec = (now - rowEpoch) / 1000;
+            // Master her 3 sn PATCH atar. 6 sn içi canlı kabul edilir (-3 sn tolerans)
+            if (ageSec >= -3 && ageSec <= 6) {
+              isMasterRecentlyAlive = true;
+            }
+          }
+
+          // 2. updated_at iki sorgu arasında değişti mi?
+          if (dbUpdatedIso && lastSeenDbUpdatedAt && dbUpdatedIso !== lastSeenDbUpdatedAt) {
+            isMasterRecentlyAlive = true;
+          }
+
+          if (dbUpdatedIso !== lastSeenDbUpdatedAt) {
+            lastSeenDbUpdatedAt = dbUpdatedIso;
+            lastSeenDbUpdatedTime = now;
+          }
+
+          if (isMasterRecentlyAlive) {
+            lastMasterHeartbeat = now;
+            state.master_online = true;
             state.rover_online = Boolean(data.rover_online);
-            if (state.rover_online) lastRoverHeartbeat = Date.now();
+            if (state.rover_online) lastRoverHeartbeat = now;
+
+            rawMasterTemp = (data.current_temp != null && !isNaN(data.current_temp) && Number(data.current_temp) > 0) ? Number(data.current_temp) : 0.0;
+            rawRoverTemp = (data.rover_temp != null && !isNaN(data.rover_temp) && Number(data.rover_temp) > 0) ? Number(data.rover_temp) : 0.0;
+          } else {
+            // Master enerjisi kesilmiş veya çevrimdışı!
+            state.master_online = false;
+            state.rover_online = false;
+            rawMasterTemp = 0.0;
+            rawRoverTemp = 0.0;
+            state.current_temp = 0.0;
+            state.rover_temp = 0.0;
           }
 
           state.set_temp = Number(data.set_temp);
-          rawMasterTemp = Number(data.current_temp);
-          rawRoverTemp = Number(data.rover_temp);
           applyCalibratedTemperatures();
 
           state.mode = data.mode || 'auto';
@@ -5592,15 +5639,20 @@ function drawHeatingChart(sessions, dayOffset) {
             }
 
             // Ev Termostat Durumu (id === 'home')
-            lastMasterHeartbeat = Date.now();
+            const now = Date.now();
+            lastMasterHeartbeat = now;
             state.master_online = true;
+            lastSeenDbUpdatedAt = d.updated_at || '';
+            lastSeenDbUpdatedTime = now;
+
             if (d.rover_online !== undefined) {
               state.rover_online = Boolean(d.rover_online);
-              if (state.rover_online) lastRoverHeartbeat = Date.now();
+              if (state.rover_online) lastRoverHeartbeat = now;
+              else state.rover_temp = 0.0;
             }
 
-            rawMasterTemp = Number(d.current_temp);
-            rawRoverTemp = Number(d.rover_temp);
+            rawMasterTemp = (d.current_temp != null && !isNaN(d.current_temp) && Number(d.current_temp) > 0) ? Number(d.current_temp) : 0.0;
+            rawRoverTemp = (d.rover_temp != null && !isNaN(d.rover_temp) && Number(d.rover_temp) > 0) ? Number(d.rover_temp) : 0.0;
             applyCalibratedTemperatures();
 
             state.r1_state = Boolean(d.r1_state);
@@ -5644,8 +5696,8 @@ function drawHeatingChart(sessions, dayOffset) {
     renderUI();
     fetchInitialData();
     setupRealtime();
-    setInterval(fetchInitialData, 4000); // 4 sn yedek poll
-    setInterval(checkStationHealth, 2500); // İstasyon enerji kesintisi ve çevrimdışı takip
+    setInterval(fetchInitialData, 3000); // 3 sn yedek poll
+    setInterval(checkStationHealth, 1000); // 1 sn aralıkla anlık enerji kesintisi takibi (0.0°C)
     setInterval(() => {
       if (state.r1_state) {
         trackHeatingSession(true);
