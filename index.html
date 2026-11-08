@@ -2371,19 +2371,19 @@
       <div class="telemetry-card">
         <div class="telemetry-header">
           <span>MASTER SENSÖRÜ</span>
-          <span style="color:#38bdf8">● DS18B20</span>
+          <span style="color:#38bdf8" id="hubSubStatus">● DS18B20</span>
         </div>
         <div class="telemetry-val" id="hubTempVal">--.-°C</div>
-        <div class="telemetry-sub">Ana Termostat Sıcaklığı</div>
+        <div class="telemetry-sub" id="hubTempSub">Ana Termostat Sıcaklığı</div>
       </div>
 
       <div class="telemetry-card">
         <div class="telemetry-header">
           <span>OTHER SENSÖRÜ</span>
-          <span style="color:#10b981">● ESP-NOW</span>
+          <span style="color:#10b981" id="roverSubStatus">● ESP-NOW</span>
         </div>
         <div class="telemetry-val" id="roverTempVal">--.-°C</div>
-        <div class="telemetry-sub">Kablosuz Oda Sensörü</div>
+        <div class="telemetry-sub" id="roverTempSub">Kablosuz Oda Sensörü</div>
       </div>
     </div>
 
@@ -3915,31 +3915,64 @@
       let activeAmbient = null;
       let sourceTagName = 'Otomatik';
 
-      const hubVal = (state.current_temp != null && !isNaN(state.current_temp) && state.current_temp > -40) ? state.current_temp : null;
-      const roverVal = (state.rover_temp != null && !isNaN(state.rover_temp) && state.rover_temp > -40) ? state.rover_temp : null;
+      const isMasterAlive = (state.master_online !== false);
+      const isRoverAlive = (state.rover_online !== false);
+
+      // Canlı okuma kesildiğinde (enerji kesintisinde) 0 göster
+      const hubVal = isMasterAlive 
+        ? ((state.current_temp != null && !isNaN(state.current_temp) && state.current_temp > -40) ? state.current_temp : 0.0) 
+        : 0.0;
+      const roverVal = isRoverAlive 
+        ? ((state.rover_temp != null && !isNaN(state.rover_temp) && state.rover_temp > -40) ? state.rover_temp : 0.0) 
+        : 0.0;
 
       if (state.temp_source === 1) { // Sadece Master
-        activeAmbient = hubVal;
-        sourceTagName = 'Sadece MASTER (DS18B20)';
+        activeAmbient = isMasterAlive ? hubVal : 0.0;
+        sourceTagName = isMasterAlive ? 'Sadece MASTER (DS18B20)' : 'Sadece MASTER (⚡ Enerji Kesik)';
       } else if (state.temp_source === 2) { // Sadece Other
-        activeAmbient = roverVal != null ? roverVal : hubVal;
-        sourceTagName = 'Sadece OTHER (NTC)';
+        activeAmbient = isRoverAlive ? roverVal : 0.0;
+        sourceTagName = isRoverAlive ? 'Sadece OTHER (NTC)' : 'Sadece OTHER (⚡ Enerji Kesik)';
       } else if (state.temp_source === 3) { // Ortalama ((Master + Other) / 2)
-        if (hubVal != null && roverVal != null) {
+        if (isMasterAlive && isRoverAlive) {
           activeAmbient = (hubVal + roverVal) / 2.0;
-        } else if (roverVal != null) {
+          sourceTagName = 'İki Sensörün Ortalaması (MASTER + OTHER)';
+        } else if (isRoverAlive) {
           activeAmbient = roverVal;
-        } else {
+          sourceTagName = 'Ortalama (⚡ Sadece OTHER Canlı)';
+        } else if (isMasterAlive) {
           activeAmbient = hubVal;
+          sourceTagName = 'Ortalama (⚡ Sadece MASTER Canlı)';
+        } else {
+          activeAmbient = 0.0;
+          sourceTagName = '⚡ İki İstasyon da Çevrimdışı (0.0°C)';
         }
-        sourceTagName = 'İki Sensörün Ortalaması (MASTER + OTHER)';
       } else { // 0: Otomatik
-        activeAmbient = (roverVal != null) ? roverVal : hubVal;
-        sourceTagName = (roverVal != null) ? 'Otomatik (OTHER Öncelikli)' : 'Otomatik (MASTER Aktif)';
+        if (isRoverAlive) {
+          activeAmbient = roverVal;
+          sourceTagName = 'Otomatik (OTHER Öncelikli)';
+        } else if (isMasterAlive) {
+          activeAmbient = hubVal;
+          sourceTagName = 'Otomatik (OTHER Kesik ➔ MASTER Aktif)';
+        } else {
+          activeAmbient = 0.0;
+          sourceTagName = '⚡ İstasyonlar Çevrimdışı (0.0°C)';
+        }
       }
 
+      // Ana Kadran Ortam Sıcaklığı
       const ambEl = document.getElementById('ambientTempVal');
-      if (ambEl) ambEl.innerText = (activeAmbient != null && !isNaN(activeAmbient)) ? Number(activeAmbient).toFixed(1) + '°C' : '--.-°C';
+      if (ambEl) {
+        if (!isMasterAlive && !isRoverAlive) {
+          ambEl.innerText = '0.0°C';
+          ambEl.style.color = '#ef4444';
+        } else if (activeAmbient === 0.0 && (!isMasterAlive || !isRoverAlive)) {
+          ambEl.innerText = '0.0°C';
+          ambEl.style.color = '#ef4444';
+        } else {
+          ambEl.innerText = (activeAmbient != null && !isNaN(activeAmbient)) ? Number(activeAmbient).toFixed(1) + '°C' : '0.0°C';
+          ambEl.style.color = '';
+        }
+      }
       
       const tagEl = document.getElementById('sensorActiveTag');
       if (tagEl) tagEl.innerText = sourceTagName;
@@ -3952,11 +3985,57 @@
         }
       }
 
+      // 1. OTHER SENSÖRÜ (Rover) Kartı
       const roverEl = document.getElementById('roverTempVal');
-      if (roverEl) roverEl.innerText = (state.rover_temp != null && !isNaN(state.rover_temp)) ? Number(state.rover_temp).toFixed(1) + '°C' : '--.-°C';
+      const roverSub = document.getElementById('roverTempSub');
+      const roverStatus = document.getElementById('roverSubStatus');
+      if (roverEl) {
+        if (!isRoverAlive) {
+          roverEl.innerText = '0.0°C';
+          roverEl.style.color = '#ef4444';
+          roverEl.style.textShadow = '0 0 12px rgba(239, 68, 68, 0.6)';
+          if (roverSub) roverSub.innerHTML = '<span style="color:#ef4444; font-weight:700;">⚠️ Enerji Kesildi (Canlı Okuma Yok)</span>';
+          if (roverStatus) {
+            roverStatus.innerText = '🔴 Çevrimdışı';
+            roverStatus.style.color = '#ef4444';
+          }
+        } else {
+          roverEl.innerText = (state.rover_temp != null && !isNaN(state.rover_temp)) ? Number(state.rover_temp).toFixed(1) + '°C' : '--.-°C';
+          roverEl.style.color = '';
+          roverEl.style.textShadow = '';
+          if (roverSub) roverSub.innerText = 'Kablosuz Oda Sensörü';
+          if (roverStatus) {
+            roverStatus.innerText = '● ESP-NOW';
+            roverStatus.style.color = '#10b981';
+          }
+        }
+      }
       
+      // 2. MASTER SENSÖRÜ (Hub) Kartı
       const hubEl = document.getElementById('hubTempVal');
-      if (hubEl) hubEl.innerText = (state.current_temp != null && !isNaN(state.current_temp)) ? Number(state.current_temp).toFixed(1) + '°C' : '--.-°C';
+      const hubSub = document.getElementById('hubTempSub');
+      const hubStatus = document.getElementById('hubSubStatus');
+      if (hubEl) {
+        if (!isMasterAlive) {
+          hubEl.innerText = '0.0°C';
+          hubEl.style.color = '#ef4444';
+          hubEl.style.textShadow = '0 0 12px rgba(239, 68, 68, 0.6)';
+          if (hubSub) hubSub.innerHTML = '<span style="color:#ef4444; font-weight:700;">⚠️ Enerji Kesildi (Canlı Okuma Yok)</span>';
+          if (hubStatus) {
+            hubStatus.innerText = '🔴 Çevrimdışı';
+            hubStatus.style.color = '#ef4444';
+          }
+        } else {
+          hubEl.innerText = (state.current_temp != null && !isNaN(state.current_temp)) ? Number(state.current_temp).toFixed(1) + '°C' : '--.-°C';
+          hubEl.style.color = '';
+          hubEl.style.textShadow = '';
+          if (hubSub) hubSub.innerText = 'Ana Termostat Sıcaklığı';
+          if (hubStatus) {
+            hubStatus.innerText = '● DS18B20';
+            hubStatus.style.color = '#38bdf8';
+          }
+        }
+      }
 
       // 3. Mod Butonları
       document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
@@ -4060,7 +4139,10 @@
         oStatusBadge.innerText = isOtherAlive ? '🟢 Canlı Telemetri' : '🔴 Sinyal Kesik';
         oStatusBadge.className = 'device-badge ' + (isOtherAlive ? 'green' : 'yellow');
       }
-      if (oTempVal) oTempVal.innerText = (roverVal != null ? roverVal.toFixed(1) + '°C' : '--.-°C');
+      if (oTempVal) {
+        oTempVal.innerText = isOtherAlive ? (roverVal != null ? roverVal.toFixed(1) + '°C' : '--.-°C') : '0.0°C (Kesik)';
+        oTempVal.style.color = isOtherAlive ? '#10b981' : '#ef4444';
+      }
 
       // C3 Kombi Röle Modülü
       const sC3Text = document.getElementById('stripC3Text');
@@ -4441,10 +4523,18 @@
       const now = Date.now();
       const masterSecAgo = Math.round((now - lastMasterHeartbeat) / 1000);
       const isMasterAlive = (masterSecAgo < 15);
+      const prevMasterOnline = state.master_online;
       state.master_online = isMasterAlive;
 
       const roverSecAgo = Math.round((now - lastRoverHeartbeat) / 1000);
       const isRoverAlive = (state.rover_online !== false) && (roverSecAgo < 18);
+      const prevRoverOnline = state.rover_online;
+      state.rover_online = isRoverAlive;
+
+      // İstasyon enerji durumu değiştiğinde ekranı anında yeniden çizdir (0.0°C güncellemesi)
+      if (prevMasterOnline !== isMasterAlive || prevRoverOnline !== isRoverAlive) {
+        renderUI();
+      }
 
       renderStationAlerts(isMasterAlive, isRoverAlive, masterSecAgo, roverSecAgo);
       updateDeviceStripHealth(isMasterAlive, isRoverAlive);
