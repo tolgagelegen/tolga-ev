@@ -4156,16 +4156,45 @@
       const c3R1 = document.getElementById('c3ModalR1');
       const c3R2 = document.getElementById('c3ModalR2');
 
-      const isC3Alive = Boolean(state.c3_online);
-      if (sC3Text) sC3Text.innerText = isC3Alive ? `Telsiz (${state.r1_state ? 'Kombi AÇIK' : 'Beklemede'})` : (state.r1_state ? 'Kombi AÇIK' : 'Beklemede');
-      if (sC3Dot) sC3Dot.className = 'strip-dot ' + (isC3Alive ? 'green' : (state.r1_state ? 'green' : 'yellow'));
+      const isC3Alive = isMasterAlive && Boolean(state.c3_online);
+      const c3Confirmed = Boolean(state.c3_confirmed);
+      const c3ActualR1 = Boolean(state.c3_r1_actual);
+      const c3Mismatch = isC3Alive && c3Confirmed && (c3ActualR1 !== Boolean(state.r1_state));
+
+      if (sC3Text) {
+        if (!isMasterAlive) sC3Text.innerText = 'Çevrimdışı';
+        else if (!isC3Alive) sC3Text.innerText = state.r1_state ? '⚠️ C3 Çevrimdışı!' : 'Çevrimdışı';
+        else if (c3Mismatch) sC3Text.innerText = '⏳ Eşitleniyor...';
+        else sC3Text.innerText = `Hibrit (${state.r1_state ? 'Kombi AÇIK ✓' : 'Beklemede'})`;
+      }
+      if (sC3Dot) {
+        if (!isMasterAlive || !isC3Alive) sC3Dot.className = 'strip-dot red';
+        else if (c3Mismatch) sC3Dot.className = 'strip-dot yellow';
+        else sC3Dot.className = 'strip-dot green';
+      }
       if (c3Badge) {
-        c3Badge.innerText = isC3Alive ? '🟢 Canlı Aktüatör' : 'Beklemede';
-        c3Badge.className = 'device-badge ' + (isC3Alive ? 'green' : '');
+        if (!isMasterAlive || !isC3Alive) {
+          c3Badge.innerText = '🔴 Çevrimdışı (30s Bekleniyor)';
+          c3Badge.className = 'device-badge yellow';
+        } else if (c3Mismatch) {
+          c3Badge.innerText = '🟡 Teyit Bekleniyor';
+          c3Badge.className = 'device-badge yellow';
+        } else {
+          c3Badge.innerText = '🟢 Canlı Aktüatör (Onaylı)';
+          c3Badge.className = 'device-badge green';
+        }
       }
       if (c3R1) {
-        c3R1.innerText = state.r1_state ? '🔥 AÇIK (Isıtıyor)' : '⚪ KAPALI (Beklemede)';
-        c3R1.style.color = state.r1_state ? '#ff5722' : '#94a3b8';
+        if (!isC3Alive) {
+          c3R1.innerText = state.r1_state ? '⚠️ İstenen: AÇIK (C3 Yanıt Yok)' : '⚪ KAPALI (C3 Çevrimdışı)';
+          c3R1.style.color = '#ef4444';
+        } else if (c3Mismatch) {
+          c3R1.innerText = `⏳ İstenen: ${state.r1_state ? 'AÇIK' : 'KAPALI'} (Eşitleniyor...)`;
+          c3R1.style.color = '#f59e0b';
+        } else {
+          c3R1.innerText = state.r1_state ? '🔥 AÇIK (Röle Onaylı)' : '⚪ KAPALI (Röle Onaylı)';
+          c3R1.style.color = state.r1_state ? '#ff5722' : '#94a3b8';
+        }
       }
       if (c3R2) {
         c3R2.innerText = state.r2_state ? '🔥 AÇIK' : '⚪ KAPALI';
@@ -4577,6 +4606,28 @@
             <div class="alert-info-box">
               <div class="alert-title">⚠️ OTHER (ODA İSTASYONU) ENERJİSİ KESİLDİ</div>
               <div class="alert-sub">Oda termostatından kablosuz telsiz sinyali kesildi. Pilini veya adaptör bağlantısını kontrol ediniz.</div>
+            </div>
+          </div>
+        `;
+      }
+
+      if (masterAlive && state.r1_state && !state.c3_online) {
+        html += `
+          <div class="station-alert-card">
+            <div class="alert-icon-box">🔥</div>
+            <div class="alert-info-box">
+              <div class="alert-title">⚠️ KOMBİ RÖLE MODÜLÜ (C3) ÇEVRİMDIŞI!</div>
+              <div class="alert-sub">Termostat ısıtma istiyor ancak kombi yanındaki C3 röle modülünden 45 sn'dir (ESP-NOW + 30 sn HTTP yedek) yanıt alınamıyor. Kombi açılmamış olabilir!</div>
+            </div>
+          </div>
+        `;
+      } else if (masterAlive && state.c3_online && state.c3_confirmed && (Boolean(state.c3_r1_actual) !== Boolean(state.r1_state))) {
+        html += `
+          <div class="station-alert-card warning-card">
+            <div class="alert-icon-box">⏳</div>
+            <div class="alert-info-box">
+              <div class="alert-title">⏳ KOMBİ RÖLE TEYİDİ EŞİTLENİYOR</div>
+              <div class="alert-sub">Hedef: ${state.r1_state ? 'AÇIK' : 'KAPALI'} • C3 Röle: ${state.c3_r1_actual ? 'AÇIK' : 'KAPALI'}. Yedek HTTP/ESP-NOW senkronizasyonu devrede...</div>
             </div>
           </div>
         `;
@@ -5546,6 +5597,8 @@ function drawHeatingChart(sessions, dayOffset) {
             if (dm > 3) {
               state.temp_source = (dm >> 8) & 0x03;
               state.days_mask = dm & 0x7F;
+              state.c3_confirmed = Boolean((dm >> 10) & 0x01);
+              state.c3_r1_actual = Boolean((dm >> 11) & 0x01);
             } else if (dm >= 0 && dm <= 3) {
               state.temp_source = dm;
             }
@@ -5664,6 +5717,8 @@ function drawHeatingChart(sessions, dayOffset) {
               if (dm > 3) {
                 state.temp_source = (dm >> 8) & 0x03;
                 state.days_mask = dm & 0x7F;
+                state.c3_confirmed = Boolean((dm >> 10) & 0x01);
+                state.c3_r1_actual = Boolean((dm >> 11) & 0x01);
               } else if (dm >= 0 && dm <= 3) {
                 state.temp_source = dm;
               }
