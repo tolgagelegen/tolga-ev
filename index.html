@@ -1952,6 +1952,39 @@
       font-weight: 600;
     }
 
+    .session-meta-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 5px;
+      margin-top: 4px;
+    }
+
+    .session-meta-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      padding: 2px 6px;
+      border-radius: 6px;
+      font-size: 0.65rem;
+      font-weight: 700;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: #cbd5e1;
+    }
+
+    .session-meta-chip.c3-ok {
+      background: rgba(16, 185, 129, 0.14);
+      border-color: rgba(16, 185, 129, 0.35);
+      color: #34d399;
+    }
+
+    .session-meta-chip.c3-warn {
+      background: rgba(245, 158, 11, 0.14);
+      border-color: rgba(245, 158, 11, 0.35);
+      color: #fbbf24;
+    }
+
     /* Setup & Kalibrasyon Modalı Stilleri */
     .setup-section-card {
       background: rgba(255, 255, 255, 0.03);
@@ -4452,6 +4485,103 @@
       return sessions;
     }
 
+    let fwSessionsSeenFromCloud = false;
+    let lastCloudArchiveSyncMs = 0;
+
+    function getActiveSensorTemp() {
+      const mOk = (state.master_online && state.current_temp != null && !isNaN(state.current_temp) && state.current_temp > 0);
+      const rOk = (state.master_online && state.rover_online && state.rover_temp != null && !isNaN(state.rover_temp) && state.rover_temp > 0);
+      const src = Number(state.temp_source || 0);
+      if (src === 1) return mOk ? Number(state.current_temp) : (rOk ? Number(state.rover_temp) : 0);
+      if (src === 2) return rOk ? Number(state.rover_temp) : (mOk ? Number(state.current_temp) : 0);
+      if (src === 3) {
+        if (mOk && rOk) return Number(((Number(state.current_temp) + Number(state.rover_temp)) / 2).toFixed(2));
+        return rOk ? Number(state.rover_temp) : (mOk ? Number(state.current_temp) : 0);
+      }
+      return rOk ? Number(state.rover_temp) : (mOk ? Number(state.current_temp) : 0);
+    }
+
+    function getCalibOffsetForSource(src) {
+      const s = Number(src || 0);
+      const calM = Number((calibration && calibration.master) || 0);
+      const calR = Number((calibration && calibration.rover) || 0);
+      if (s === 1) return calM;
+      if (s === 3) return (calM + calR) / 2;
+      return calR;
+    }
+
+    function getDisplaySessionTemps(s) {
+      const calOff = s.fromFirmware ? getCalibOffsetForSource(s.tempSource) : 0;
+      const sT = (s.startTemp != null && !isNaN(s.startTemp)) ? Number(s.startTemp) + calOff : 20.0;
+      const eT = (s.endTemp != null && !isNaN(s.endTemp)) ? Number(s.endTemp) + calOff : sT;
+      const minT = (s.minTemp != null && !isNaN(s.minTemp) && s.minTemp > -40) ? Number(s.minTemp) + calOff : Math.min(sT, eT);
+      const maxT = (s.maxTemp != null && !isNaN(s.maxTemp) && s.maxTemp > -40) ? Number(s.maxTemp) + calOff : Math.max(sT, eT);
+      return { sT, eT, minT, maxT };
+    }
+
+    function normalizeFwSession(s) {
+      if (!s || !s.id || !s.st || Number(s.st) < 1600000000000) return null;
+      const durSec = Math.max(1, Number(s.dur) || Math.round((Number(s.et || s.st) - Number(s.st)) / 1000));
+      return {
+        id: s.id,
+        startTime: Number(s.st),
+        endTime: Number(s.et || s.st),
+        durationSec: durSec,
+        durationMin: Math.max(1, Math.round(durSec / 60)),
+        startTemp: Number(s.sT),
+        endTemp: Number(s.eT != null ? s.eT : s.sT),
+        minTemp: (s.minT != null) ? Number(s.minT) : Number(s.sT),
+        maxTemp: (s.maxT != null) ? Number(s.maxT) : Number(s.eT != null ? s.eT : s.sT),
+        startMaster: (s.sM != null && Number(s.sM) > 0) ? Number(s.sM) : null,
+        endMaster: (s.eM != null && Number(s.eM) > 0) ? Number(s.eM) : null,
+        startRover: (s.sR != null && Number(s.sR) > 0) ? Number(s.sR) : null,
+        endRover: (s.eR != null && Number(s.eR) > 0) ? Number(s.eR) : null,
+        targetTemp: (s.tgt != null && Number(s.tgt) > 0) ? Number(s.tgt) : null,
+        tempSource: (s.src != null) ? Number(s.src) : 0,
+        cause: s.cause || 'Otomatik Termostat',
+        c3Confirmed: Boolean(s.c3),
+        recovered: Boolean((Number(s.fl || 0) & 2) !== 0),
+        isReal: true,
+        fromFirmware: true
+      };
+    }
+
+    function ingestFwSessionsPayload(rawModeJson, alsoSyncArchive = true) {
+      if (!rawModeJson) return;
+      try {
+        const p = (typeof rawModeJson === 'string') ? JSON.parse(rawModeJson) : rawModeJson;
+        if (!p || typeof p !== 'object') return;
+        fwSessionsSeenFromCloud = true;
+
+        if (p.active && p.active.st && Number(p.active.st) > 1600000000000 && state.r1_state) {
+          const normAct = normalizeFwSession(p.active);
+          if (normAct) {
+            const disp = getDisplaySessionTemps(normAct);
+            activeHeatingSession = {
+              id: normAct.id,
+              startTime: normAct.startTime,
+              startTemp: disp.sT,
+              targetTemp: normAct.targetTemp,
+              tempSource: normAct.tempSource,
+              startMaster: normAct.startMaster,
+              startRover: normAct.startRover,
+              c3Confirmed: normAct.c3Confirmed,
+              cause: normAct.cause,
+              fromFirmware: true
+            };
+            try { localStorage.setItem(getStorageKey('active_session'), JSON.stringify(activeHeatingSession)); } catch(e){}
+          }
+        }
+
+        if (Array.isArray(p.sessions)) {
+          const normalized = p.sessions.map(normalizeFwSession).filter(Boolean);
+          mergeSessionsFromCloud(normalized, alsoSyncArchive);
+        }
+      } catch(e) {
+        console.warn('fw_sessions parse hatasi:', e);
+      }
+    }
+
     // Seansları localStorage ve Bellekten Yükleme
     function loadHeatingSessions() {
       let sessions = [];
@@ -4460,18 +4590,11 @@
         if (raw) sessions = JSON.parse(raw);
       } catch (e) {}
 
-      const now = new Date();
-      const yesterday = new Date(now);
-      yesterday.setDate(yesterday.getDate() - 1);
-
-      const hasToday = sessions.some(s => isSameDay(new Date(s.startTime), now));
-      const hasYesterday = sessions.some(s => isSameDay(new Date(s.startTime), yesterday));
-      const hasRealSessions = sessions.some(s => s.isReal === true);
-
-      // Eğer hiç seans yoksa veya geçmişte kalmış eski statik kayıtlar varsa ve gerçek canlı kayıt yoksa:
-      if (!hasToday && !hasYesterday && !hasRealSessions) {
-        sessions = generateDynamicBaselineSessions();
-        saveHeatingSessions(sessions, true);
+      const hasRealSessions = sessions.some(s => s && s.isReal === true);
+      if (hasRealSessions) {
+        sessions = sessions.filter(s => s && s.isReal === true);
+      } else if (sessions.length === 0) {
+        sessions = [];
       }
 
       return sessions;
@@ -4488,17 +4611,29 @@
       }
     }
 
-    // Supabase Bulut Veritabanı ile Çift Yönlü Eşitleme
+    // Supabase Bulut Veritabanı ile Çift Yönlü Eşitleme (calibration bilgisini korur!)
     async function syncCloudSessions(sessions) {
       if (!sbClient) return;
       try {
+        let existingCal = calibration;
+        try {
+          const { data } = await sbClient.from('thermostat').select('mode').eq('id', 'runtime_stats').single();
+          if (data && data.mode) {
+            const oldP = JSON.parse(data.mode);
+            if (oldP && oldP.calibration && (!calibration || (!calibration.master && !calibration.rover))) {
+              existingCal = oldP.calibration;
+            }
+          }
+        } catch(e){}
+
         await sbClient
           .from('thermostat')
           .upsert({
             id: 'runtime_stats',
             mode: JSON.stringify({
               updated_at: Date.now(),
-              sessions: sessions.slice(0, 100)
+              calibration: existingCal,
+              sessions: sessions.slice(0, 250)
             })
           });
       } catch (e) {
@@ -4507,28 +4642,51 @@
     }
 
     async function fetchCloudSessions() {
+      // Yerel ağdaysak doğrudan Master Hub /api/sessions uç noktasından anlık oku
+      try {
+        if (location.hostname && (location.hostname.startsWith('192.168.') || location.hostname === 'akilli-ev.local')) {
+          const r = await fetch('/api/sessions');
+          if (r.ok) {
+            const fwData = await r.json();
+            ingestFwSessionsPayload(fwData, false);
+          }
+        }
+      } catch(e) {}
+
       if (!sbClient) return;
       try {
         const { data, error } = await sbClient
           .from('thermostat')
-          .select('*')
-          .eq('id', 'runtime_stats')
-          .single();
+          .select('id,mode')
+          .in('id', ['runtime_stats', 'fw_sessions']);
 
-        if (data && data.mode) {
-          try {
-            const parsed = JSON.parse(data.mode);
-            if (parsed && Array.isArray(parsed.sessions)) {
-              mergeSessionsFromCloud(parsed.sessions);
-            }
-          } catch(e) {}
+        if (Array.isArray(data)) {
+          const rtRow = data.find(r => r.id === 'runtime_stats');
+          if (rtRow && rtRow.mode) {
+            try {
+              const parsed = JSON.parse(rtRow.mode);
+              if (parsed && parsed.calibration) {
+                calibration = Object.assign(calibration, parsed.calibration);
+                localStorage.setItem('tolga_thermo_calibration', JSON.stringify(calibration));
+                applyCalibratedTemperatures();
+              }
+              if (parsed && Array.isArray(parsed.sessions)) {
+                mergeSessionsFromCloud(parsed.sessions, false);
+              }
+            } catch(e) {}
+          }
+
+          const fwRow = data.find(r => r.id === 'fw_sessions');
+          if (fwRow && fwRow.mode) {
+            ingestFwSessionsPayload(fwRow.mode, true);
+          }
         }
       } catch (e) {
         console.log('Bulut seans verisi henüz yok:', e);
       }
     }
 
-    function mergeSessionsFromCloud(cloudSessions) {
+    function mergeSessionsFromCloud(cloudSessions, syncBackArchive = false) {
       if (!Array.isArray(cloudSessions) || cloudSessions.length === 0) return;
       let local = [];
       try {
@@ -4536,13 +4694,32 @@
         if (raw) local = JSON.parse(raw);
       } catch(e){}
 
+      const prevCount = local.length;
       const map = new Map();
-      local.forEach(s => { if (s && s.id) map.set(s.id, s); });
-      cloudSessions.forEach(s => { if (s && s.id) map.set(s.id, s); });
+      local.forEach(s => { if (s && s.id && s.isReal) map.set(s.id, s); });
+      cloudSessions.forEach(s => {
+        if (!s || !s.id) return;
+        if (s.isReal || map.size === 0) map.set(s.id, s);
+      });
 
-      const merged = Array.from(map.values()).sort((a, b) => b.startTime - a.startTime);
-      if (merged.length > 150) merged.length = 150;
-      saveHeatingSessions(merged, false);
+      // Eski tarayıcı tabanlı (s_live_) kayıtları, aynı zaman aralığındaki kesin cihaz (fw_) kayıtlarıyla çakışıyorsa temizle
+      let vals = Array.from(map.values()).filter(s => s && s.isReal);
+      const fwList = vals.filter(s => s.fromFirmware);
+      if (fwList.length > 0) {
+        vals = vals.filter(s => {
+          if (s.fromFirmware || !String(s.id).startsWith('s_live_')) return true;
+          return !fwList.some(fw => Math.abs(fw.startTime - s.startTime) < 90000 || Math.abs(fw.endTime - s.endTime) < 90000);
+        });
+      }
+
+      const merged = vals.sort((a, b) => b.startTime - a.startTime);
+      if (merged.length > 250) merged.length = 250;
+
+      const hasNewData = (merged.length !== prevCount) || cloudSessions.some(s => s && s.fromFirmware && !local.some(l => l && l.id === s.id));
+      const shouldArchive = syncBackArchive && hasNewData && (Date.now() - lastCloudArchiveSyncMs > 30000);
+      if (shouldArchive) lastCloudArchiveSyncMs = Date.now();
+
+      saveHeatingSessions(merged, shouldArchive);
 
       if (currentMainTab === 'reports') {
         renderReportView();
@@ -4663,16 +4840,15 @@
       }
     }
 
-    // Canlı Seans Takip Motoru (Kombi Açılıp Kapanırken)
+    // Canlı Seans Takip Motoru (Cihaz NVS/fw_sessions birincil kaynak, tarayıcı yedek gözlemci)
+    let lastFwFetchOnToggle = 0;
     function trackHeatingSession(isRelayOn) {
       const now = Date.now();
-      const currentT = (state.current_temp != null && !isNaN(state.current_temp) && state.current_temp > -40) 
-                        ? Number(state.current_temp) : 21.0;
+      const actT = getActiveSensorTemp();
+      const currentT = (actT > 0) ? actT : ((state.current_temp != null && !isNaN(state.current_temp) && state.current_temp > 0) ? Number(state.current_temp) : 21.0);
 
       if (isRelayOn) {
-        // Kombi çalışıyor
         if (!activeHeatingSession) {
-          // Önce tarayıcı yenilemelerine karşı localStorage'dan var olan seansı ara
           try {
             const rawAct = localStorage.getItem(getStorageKey('active_session'));
             if (rawAct) {
@@ -4691,49 +4867,62 @@
             activeHeatingSession = {
               startTime: now,
               startTemp: currentT,
-              cause: causeStr
+              targetTemp: Number(state.set_temp) || null,
+              tempSource: Number(state.temp_source || 0),
+              c3Confirmed: Boolean(state.c3_confirmed && state.c3_r1_actual),
+              cause: causeStr,
+              fromFirmware: false
             };
-            try {
-              localStorage.setItem(getStorageKey('active_session'), JSON.stringify(activeHeatingSession));
-            } catch(e){}
+            try { localStorage.setItem(getStorageKey('active_session'), JSON.stringify(activeHeatingSession)); } catch(e){}
+            if (now - lastFwFetchOnToggle > 3000) {
+              lastFwFetchOnToggle = now;
+              setTimeout(() => fetchCloudSessions(), 1800);
+            }
           }
+        } else if (state.c3_confirmed && state.c3_r1_actual) {
+          activeHeatingSession.c3Confirmed = true;
         }
       } else {
-        // Kombi kapandı -> Seansı tamamla ve kaydet
         let sessionToSave = activeHeatingSession;
         if (!sessionToSave) {
           try {
             const rawAct = localStorage.getItem(getStorageKey('active_session'));
-            if (rawAct) {
-              sessionToSave = JSON.parse(rawAct);
-            }
+            if (rawAct) sessionToSave = JSON.parse(rawAct);
           } catch(e){}
         }
 
         if (sessionToSave && sessionToSave.startTime) {
-          const durationMs = now - sessionToSave.startTime;
-          const durationMin = Math.max(1, Math.round(durationMs / 60000));
-          const sessions = loadHeatingSessions();
-
-          const newSession = {
-            id: 's_live_' + now,
-            startTime: sessionToSave.startTime,
-            endTime: now,
-            durationMin: durationMin,
-            startTemp: Number(sessionToSave.startTemp) || currentT,
-            endTemp: currentT,
-            cause: sessionToSave.cause || 'Otomatik Termostat',
-            isReal: true
-          };
-
-          sessions.unshift(newSession);
-          if (sessions.length > 150) sessions.length = 150;
-          saveHeatingSessions(sessions, true);
-
           activeHeatingSession = null;
-          try {
-            localStorage.removeItem(getStorageKey('active_session'));
-          } catch(e){}
+          try { localStorage.removeItem(getStorageKey('active_session')); } catch(e){}
+
+          if (fwSessionsSeenFromCloud) {
+            // Kesin kayıt Master Hub cihazından (fw_sessions) geleceği için çakışan tarayıcı kaydı üretme; yalnızca çek
+            if (now - lastFwFetchOnToggle > 2000) {
+              lastFwFetchOnToggle = now;
+              setTimeout(() => fetchCloudSessions(), 1500);
+            }
+          } else {
+            const durationMs = now - sessionToSave.startTime;
+            const durationSec = Math.max(1, Math.round(durationMs / 1000));
+            const durationMin = Math.max(1, Math.round(durationSec / 60));
+            const sessions = loadHeatingSessions();
+            sessions.unshift({
+              id: 's_live_' + now,
+              startTime: sessionToSave.startTime,
+              endTime: now,
+              durationSec: durationSec,
+              durationMin: durationMin,
+              startTemp: Number(sessionToSave.startTemp) || currentT,
+              endTemp: currentT,
+              targetTemp: sessionToSave.targetTemp || Number(state.set_temp) || null,
+              tempSource: (sessionToSave.tempSource != null) ? sessionToSave.tempSource : Number(state.temp_source || 0),
+              c3Confirmed: Boolean(sessionToSave.c3Confirmed),
+              cause: sessionToSave.cause || 'Otomatik Termostat',
+              isReal: true
+            });
+            if (sessions.length > 250) sessions.length = 250;
+            saveHeatingSessions(sessions, true);
+          }
 
           if (currentMainTab === 'reports') {
             renderReportView();
@@ -4825,20 +5014,26 @@
         }
       });
 
-      // Canlı Isıtma Durumu
+      // Canlı Isıtma Durumu (Aktif termostat sensörü ile)
       let liveElapsedMin = 0;
-      const currT = (state.current_temp != null && !isNaN(state.current_temp) && state.current_temp > -40) ? Number(state.current_temp) : 21.5;
+      let liveElapsedSec = 0;
+      const actLiveT = getActiveSensorTemp();
+      const currT = (actLiveT > 0) ? actLiveT : ((state.current_temp != null && !isNaN(state.current_temp) && state.current_temp > 0) ? Number(state.current_temp) : 21.5);
 
       if (state.r1_state) {
         if (!activeHeatingSession) {
           activeHeatingSession = {
-            startTime: Date.now() - 60000,
-            startTemp: currT - 0.2,
+            startTime: Date.now() - 1000,
+            startTemp: currT,
+            targetTemp: Number(state.set_temp) || null,
+            tempSource: Number(state.temp_source || 0),
+            c3Confirmed: Boolean(state.c3_confirmed && state.c3_r1_actual),
             cause: state.schedule_enabled ? 'Haftalık Program' : (state.mode === 'auto' ? 'Otomatik Termostat' : 'Manuel Isıtma')
           };
           try { localStorage.setItem(getStorageKey('active_session'), JSON.stringify(activeHeatingSession)); } catch(e){}
         }
-        liveElapsedMin = Math.max(1, Math.round((Date.now() - activeHeatingSession.startTime) / 60000));
+        liveElapsedSec = Math.max(1, Math.round((Date.now() - activeHeatingSession.startTime) / 1000));
+        liveElapsedMin = Math.max(1, Math.round(liveElapsedSec / 60));
         todayMin += liveElapsedMin;
         todayCount++;
         weekMin += liveElapsedMin;
@@ -4851,6 +5046,40 @@
         return `${h} sa ${m} dk`;
       }
 
+      function formatDurationDetailed(durSec, durMinFallback) {
+        const sec = Number(durSec);
+        if (!isNaN(sec) && sec > 0) {
+          if (sec < 60) return `${sec} sn`;
+          const m = Math.floor(sec / 60);
+          const s = sec % 60;
+          if (m < 60) return s > 0 ? `${m} dk ${s} sn` : `${m} dk`;
+          const h = Math.floor(m / 60);
+          const rm = m % 60;
+          return `${h} sa ${rm} dk`;
+        }
+        return formatDuration(durMinFallback || 1);
+      }
+
+      function formatSensorLabel(src) {
+        const n = Number(src || 0);
+        if (n === 1) return '🏠 Master';
+        if (n === 3) return '⚖️ Ort.';
+        return '📡 Other';
+      }
+
+      // Bugünün gerçek min/maks sıcaklığını seanslardan + canlı okumadan hesapla
+      let realTodayMin = (currT > 0) ? currT : 999;
+      let realTodayMax = (currT > 0) ? currT : -999;
+      sessions.forEach(s => {
+        if (isSameDay(new Date(s.startTime), today)) {
+          const dt = getDisplaySessionTemps(s);
+          if (dt.minT > 0 && dt.minT < realTodayMin) realTodayMin = dt.minT;
+          if (dt.maxT > 0 && dt.maxT > realTodayMax) realTodayMax = dt.maxT;
+        }
+      });
+      if (realTodayMin > 100) realTodayMin = currT;
+      if (realTodayMax < -40) realTodayMax = currT;
+
       // KPI Kartlarını Doldur
       const kpiTodayH = document.getElementById('kpiTodayHours');
       const kpiTodayC = document.getElementById('kpiTodayCount');
@@ -4862,8 +5091,8 @@
       const kpiMinMax = document.getElementById('kpiMinMaxTemp');
 
       if (kpiTodayH) {
-        if (state.r1_state && liveElapsedMin > 0) {
-          kpiTodayH.innerHTML = `${formatDuration(todayMin)} <span class="kpi-live-badge">🔥 Isıtıyor (${liveElapsedMin} dk)</span>`;
+        if (state.r1_state && liveElapsedSec > 0) {
+          kpiTodayH.innerHTML = `${formatDuration(todayMin)} <span class="kpi-live-badge">🔥 Isıtıyor (${formatDurationDetailed(liveElapsedSec, liveElapsedMin)})</span>`;
         } else {
           kpiTodayH.innerText = formatDuration(todayMin);
         }
@@ -4881,7 +5110,7 @@
       if (kpiWeekA) kpiWeekA.innerText = `Günlük ort. ${formatDuration(Math.round(weekMin / 7))}`;
 
       if (kpiAvgT) kpiAvgT.innerText = currT.toFixed(1) + '°C';
-      if (kpiMinMax) kpiMinMax.innerText = `Min ${(currT - 1.8).toFixed(1)}° • Maks ${(currT + 1.2).toFixed(1)}°`;
+      if (kpiMinMax) kpiMinMax.innerText = `Bugün Min ${realTodayMin.toFixed(1)}° • Maks ${realTodayMax.toFixed(1)}°`;
 
       // Başlık Etiketi
       const chartLbl = document.getElementById('chartSelectedDayLabel');
@@ -4920,11 +5149,15 @@
         if ((reportPeriodFilter === 'today' || reportPeriodFilter === 'all') && state.r1_state && activeHeatingSession) {
           const sTime = new Date(activeHeatingSession.startTime);
           const pad = n => String(n).padStart(2, '0');
-          const timeStr = `${pad(sTime.getHours())}:${pad(sTime.getMinutes())} ➔ Devam Ediyor...`;
-          const sTemp = Number(activeHeatingSession.startTemp) || currT;
-          const deltaT = (currT - sTemp).toFixed(1);
-          const deltaSign = (deltaT >= 0 ? '+' : '');
-          const isUp = deltaT >= 0;
+          const timeStr = `${pad(sTime.getHours())}:${pad(sTime.getMinutes())}:${pad(sTime.getSeconds())} ➔ Devam Ediyor...`;
+          const sTemp = (activeHeatingSession.startTemp != null && !isNaN(activeHeatingSession.startTemp)) ? Number(activeHeatingSession.startTemp) : currT;
+          const deltaNum = currT - sTemp;
+          const deltaT = deltaNum.toFixed(1);
+          const deltaSign = (deltaNum >= 0 ? '+' : '');
+          const isUp = deltaNum >= 0;
+          const liveC3Ok = Boolean(activeHeatingSession.c3Confirmed || (state.c3_confirmed && state.c3_r1_actual));
+          const liveTarget = activeHeatingSession.targetTemp || state.set_temp;
+          const liveSrcLbl = formatSensorLabel(activeHeatingSession.tempSource != null ? activeHeatingSession.tempSource : state.temp_source);
 
           const liveItem = document.createElement('div');
           liveItem.className = 'session-item session-item-live';
@@ -4943,10 +5176,15 @@
                     ${isUp ? '▲' : '▼'} ${deltaSign}${deltaT}°C
                   </span>
                 </div>
+                <div class="session-meta-row">
+                  ${liveTarget ? `<span class="session-meta-chip">🎯 Hedef ${Number(liveTarget).toFixed(1)}°C</span>` : ''}
+                  <span class="session-meta-chip">${liveSrcLbl}</span>
+                  <span class="session-meta-chip ${liveC3Ok ? 'c3-ok' : 'c3-warn'}">${liveC3Ok ? '✓ C3 Onaylı' : '⏳ C3 Onayı Bekleniyor'}</span>
+                </div>
               </div>
             </div>
             <div class="session-right">
-              <div class="session-duration-pill live-pill">${liveElapsedMin} dk</div>
+              <div class="session-duration-pill live-pill">${formatDurationDetailed(liveElapsedSec, liveElapsedMin)}</div>
               <div class="session-cause">${activeHeatingSession.cause}</div>
             </div>
           `;
@@ -4973,14 +5211,14 @@
             const dObj = new Date(dayList[0].startTime);
             
             // Gün Toplamları
+            let dayTotalSec = 0;
             let dayTotalMin = 0;
-            let dayMinTemp = 999;
-            let dayMaxTemp = -999;
             dayList.forEach(s => {
-              dayTotalMin += s.durationMin;
-              if (s.startTemp < dayMinTemp) dayMinTemp = s.startTemp;
-              if (s.endTemp > dayMaxTemp) dayMaxTemp = s.endTemp;
+              if (s.durationSec) dayTotalSec += Number(s.durationSec);
+              else dayTotalSec += Number(s.durationMin || 0) * 60;
+              dayTotalMin += Number(s.durationMin || 0);
             });
+            const dayDurDisplay = dayTotalSec > 0 ? formatDurationDetailed(dayTotalSec, dayTotalMin) : formatDuration(dayTotalMin);
 
             // Türkçe Tarih Formatı
             const daysTr = ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'];
@@ -5001,7 +5239,7 @@
               <div class="day-group-stats">
                 <span>${dayList.length} Seans</span>
                 <span>•</span>
-                <span style="color:#ff7043; font-weight:800;">Toplam ${formatDuration(dayTotalMin)}</span>
+                <span style="color:#ff7043; font-weight:800;">Toplam ${dayDurDisplay}</span>
               </div>
             `;
             listContainer.appendChild(groupHeader);
@@ -5011,19 +5249,41 @@
               const sTime = new Date(s.startTime);
               const eTime = new Date(s.endTime);
               const pad = n => String(n).padStart(2, '0');
-              const timeStr = `${pad(sTime.getHours())}:${pad(sTime.getMinutes())} ➔ ${pad(eTime.getHours())}:${pad(eTime.getMinutes())}`;
+              const timeStr = `${pad(sTime.getHours())}:${pad(sTime.getMinutes())}:${pad(sTime.getSeconds())} ➔ ${pad(eTime.getHours())}:${pad(eTime.getMinutes())}:${pad(eTime.getSeconds())}`;
               
-              const sT = Number(s.startTemp) || 20.0;
-              const eT = Number(s.endTemp) || 21.0;
-              const deltaT = (eT - sT).toFixed(1);
-              const deltaSign = (deltaT >= 0 ? '+' : '');
-              const isUp = deltaT >= 0;
+              const dispT = getDisplaySessionTemps(s);
+              const sT = dispT.sT;
+              const eT = dispT.eT;
+              const deltaNum = eT - sT;
+              const deltaT = deltaNum.toFixed(1);
+              const deltaSign = (deltaNum >= 0 ? '+' : '');
+              const isUp = deltaNum >= 0;
 
               // Isınma Hızı Hesabı (°C / 10 dakika)
+              const effMin = s.durationSec ? (s.durationSec / 60) : s.durationMin;
               let speedStr = '';
-              if (s.durationMin > 2 && Math.abs(deltaT) > 0.05) {
-                const per10Min = ((deltaT / s.durationMin) * 10).toFixed(1);
-                speedStr = `• Isınma Hızı: ${per10Min > 0 ? '+' : ''}${per10Min}°C/10dk`;
+              if (effMin >= 2 && Math.abs(deltaNum) >= 0.05) {
+                const per10Min = ((deltaNum / effMin) * 10).toFixed(1);
+                speedStr = `• Hız: ${Number(per10Min) > 0 ? '+' : ''}${per10Min}°C/10dk`;
+              }
+
+              const metaChips = [];
+              if (s.targetTemp) metaChips.push(`<span class="session-meta-chip">🎯 Hedef ${Number(s.targetTemp).toFixed(1)}°C</span>`);
+              if (s.fromFirmware) {
+                metaChips.push(`<span class="session-meta-chip">${formatSensorLabel(s.tempSource)}</span>`);
+                metaChips.push(s.c3Confirmed
+                  ? `<span class="session-meta-chip c3-ok">✓ C3 Onaylı</span>`
+                  : `<span class="session-meta-chip c3-warn">⚠ C3 Onayı Alınamadı</span>`);
+              }
+              if (s.recovered) metaChips.push(`<span class="session-meta-chip c3-warn">⚡ Kesinti Kurtarıldı</span>`);
+
+              let dualSensorInfo = '';
+              if (s.fromFirmware && s.startMaster && s.startRover) {
+                const mS = (s.startMaster + (calibration.master || 0)).toFixed(1);
+                const mE = ((s.endMaster || s.startMaster) + (calibration.master || 0)).toFixed(1);
+                const rS = (s.startRover + (calibration.rover || 0)).toFixed(1);
+                const rE = ((s.endRover || s.startRover) + (calibration.rover || 0)).toFixed(1);
+                dualSensorInfo = `<div class="session-speed-text" style="margin-top:3px;">Other: ${rS}➔${rE}°C • Master: ${mS}➔${mE}°C</div>`;
               }
 
               const item = document.createElement('div');
@@ -5043,10 +5303,12 @@
                         ${isUp ? '▲' : '▼'} ${deltaSign}${deltaT}°C
                       </span>
                     </div>
+                    ${metaChips.length > 0 ? `<div class="session-meta-row">${metaChips.join('')}</div>` : ''}
+                    ${dualSensorInfo}
                   </div>
                 </div>
                 <div class="session-right">
-                  <div class="session-duration-pill">${formatDuration(s.durationMin)}</div>
+                  <div class="session-duration-pill">${formatDurationDetailed(s.durationSec, s.durationMin)}</div>
                   <div class="session-cause">${s.cause} ${speedStr}</div>
                 </div>
               `;
@@ -5674,6 +5936,14 @@ function drawHeatingChart(sessions, dayOffset) {
               return;
             }
 
+            // Firmware 7/24 Kayıt Güncellemesi (id === 'fw_sessions')
+            if (d.id === 'fw_sessions') {
+              if (d.mode) {
+                ingestFwSessionsPayload(d.mode, true);
+              }
+              return;
+            }
+
             // Bulut Seans & Kalibrasyon Güncellemesi (id === 'runtime_stats')
             if (d.id === 'runtime_stats') {
               if (d.mode) {
@@ -5681,10 +5951,11 @@ function drawHeatingChart(sessions, dayOffset) {
                   const p = JSON.parse(d.mode);
                   if (p && p.calibration) {
                     calibration = Object.assign(calibration, p.calibration);
+                    localStorage.setItem('tolga_thermo_calibration', JSON.stringify(calibration));
                     applyCalibratedTemperatures();
                   }
                   if (p && Array.isArray(p.sessions)) {
-                    mergeSessionsFromCloud(p.sessions);
+                    mergeSessionsFromCloud(p.sessions, false);
                   }
                 } catch(e){}
               }
