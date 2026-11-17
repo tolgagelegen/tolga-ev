@@ -1625,10 +1625,10 @@
     }
 
   
-    /* Dual Relays Grid Layout */
+    /* Single Relay Layout (Kombi Röle 1) */
     .relays-grid {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: 1fr;
       gap: 10px;
       width: 100%;
     }
@@ -1700,36 +1700,6 @@
       font-size: 0.7rem;
       color: var(--text-muted);
       margin-top: 2px;
-    }
-
-    .relay2-toggle-btn {
-      width: 100%;
-      padding: 9px 0;
-      border-radius: 12px;
-      font-size: 0.8rem;
-      font-weight: 800;
-      letter-spacing: 0.5px;
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      background: rgba(255, 255, 255, 0.06);
-      color: var(--text-sub);
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-      touch-action: manipulation;
-    }
-
-    .relay2-toggle-btn:active {
-      transform: scale(0.96);
-    }
-
-    .relay2-toggle-btn.active {
-      background: linear-gradient(135deg, #0284c7, #0369a1);
-      color: #fff;
-      border-color: #38bdf8;
-      box-shadow: 0 4px 14px rgba(2, 132, 199, 0.45);
     }
 
     /* Chart Zoom Segmented Bar */
@@ -2343,33 +2313,17 @@
       </div>
     </div>
 
-    <!-- Dual Relay Output Grid (Röle 1 Kombi + Röle 2 Yardımcı) -->
+    <!-- Kombi Röle Çıkışı (Röle 1) -->
     <div class="relays-grid">
-      <!-- Röle 1: Kombi Ana Rölesi -->
       <div class="relay-card" id="relayCard1">
         <div class="relay-card-top">
           <div class="relay-icon-badge flame" id="relay1Badge">🔥</div>
           <div class="relay-card-info">
             <h4>Kombi (Röle 1)</h4>
-            <p id="relayDesc">C3 Telsiz Bağlantı</p>
+            <p id="relayDesc">C3 Hibrit Bağlantı (ESP-NOW + Wi-Fi)</p>
           </div>
         </div>
         <div class="relay-pill" id="relayPill" style="text-align:center;">KAPALI</div>
-      </div>
-
-      <!-- Röle 2: Yardımcı Röle (Aç/Kapat Butonlu) -->
-      <div class="relay-card" id="relayCard2">
-        <div class="relay-card-top">
-          <div class="relay-icon-badge aux" id="relay2Badge">⚡</div>
-          <div class="relay-card-info">
-            <h4>2. Röle (Yardımcı)</h4>
-            <p id="relay2Desc">Bağımsız Çıkış</p>
-          </div>
-        </div>
-        <button class="relay2-toggle-btn" id="btnToggleRelay2" onclick="toggleRelay2()">
-          <span id="relay2BtnIcon">⏻</span>
-          <span id="relay2BtnLabel">AÇ</span>
-        </button>
       </div>
     </div>
 
@@ -2970,12 +2924,8 @@
               <span class="spec-val" id="c3Relay1Val">KAPALI</span>
             </div>
             <div class="spec-item">
-              <span class="spec-lbl">Röle 2 (Vana / Pompa)</span>
-              <span class="spec-val" id="c3Relay2Val">KAPALI</span>
-            </div>
-            <div class="spec-item">
-              <span class="spec-lbl">Telsiz Frekansı</span>
-              <span class="spec-val">Kanal 4 Kilitli</span>
+              <span class="spec-lbl">İletişim Hattı</span>
+              <span class="spec-val">ESP-NOW + HTTP Yedek</span>
             </div>
             <div class="spec-item">
               <span class="spec-lbl">Sinyal Gücü (RSSI)</span>
@@ -3030,7 +2980,6 @@
       temp_source: 0,
       mode: 'auto',
       r1_state: false,
-      r2_state: false,
       c3_online: false,
       rover_online: true,
       master_online: true,
@@ -4125,7 +4074,6 @@
       }
 
       // 4. Röle Banner
-      const banner = document.getElementById('relayBanner');
       const pill = document.getElementById('relayPill');
       if (banner && pill) {
         if (state.r1_state) {
@@ -4186,8 +4134,7 @@
       const sC3Text = document.getElementById('stripC3Text');
       const sC3Dot = document.getElementById('stripC3Dot');
       const c3Badge = document.getElementById('c3StatusBadge');
-      const c3R1 = document.getElementById('c3ModalR1');
-      const c3R2 = document.getElementById('c3ModalR2');
+      const c3R1 = document.getElementById('c3Relay1Val');
 
       const isC3Alive = isMasterAlive && Boolean(state.c3_online);
       const c3Confirmed = Boolean(state.c3_confirmed);
@@ -4229,10 +4176,6 @@
           c3R1.style.color = state.r1_state ? '#ff5722' : '#94a3b8';
         }
       }
-      if (c3R2) {
-        c3R2.innerText = state.r2_state ? '🔥 AÇIK' : '⚪ KAPALI';
-        c3R2.style.color = state.r2_state ? '#ff5722' : '#94a3b8';
-      }
 
       // Rapor sekmesi üzerindeki canlı yanma nabız göstergesi
       const rPulse = document.getElementById('tabReportPulse');
@@ -4260,26 +4203,6 @@
     }
 
     // Mod Değiştirme
-        // 2. Röle (Yardımcı Röle) Aç/Kapat
-    async function toggleRelay2() {
-      lastUserActionTime = Date.now();
-      state.r2_state = !state.r2_state;
-      renderUI();
-      showToast(state.r2_state ? '⚡ 2. Röle AÇILDI' : '⚪ 2. Röle KAPATILDI');
-
-      if (sbClient) {
-        try {
-          await sbClient
-            .from('thermostat')
-            .update({ r2_state: state.r2_state })
-            .eq('id', 'home');
-        } catch (e) {
-          console.error('Relay 2 sync error:', e);
-        }
-      }
-    }
-    window.toggleRelay2 = toggleRelay2;
-
     async function setControlMode(newMode) {
       lastUserActionTime = Date.now();
       clearTimeout(updateDebounceTimer); // Bekleyen debounced istekleri iptal et
@@ -5844,7 +5767,6 @@ function drawHeatingChart(sessions, dayOffset) {
 
           state.mode = data.mode || 'auto';
           state.r1_state = Boolean(data.r1_state);
-          if (data.r2_state !== undefined) state.r2_state = Boolean(data.r2_state);
           state.c3_online = Boolean(data.c3_online);
           state.schedule_enabled = Boolean(data.schedule_enabled);
           if (data.start_hour !== undefined) state.start_hour = Number(data.start_hour);
