@@ -3072,9 +3072,15 @@
       document.getElementById('presetValWarm').innerText = customPresets.warm.toFixed(1) + '°';
     }
 
+    function buildFullDaysMask(dayMask = state.days_mask) {
+      const c3Bits = (state.c3_confirmed ? 0x400 : 0) | (state.c3_r1_actual ? 0x800 : 0);
+      return c3Bits | ((state.temp_source & 0x03) << 8) | (dayMask & 0x7F);
+    }
+
     function applyCustomPreset(key) {
       const target = customPresets[key];
       if (target != null) {
+        lastUserActionTime = Date.now();
         state.set_temp = target;
         state.mode = 'auto';
         renderUI();
@@ -3166,6 +3172,7 @@
     }
 
     async function saveSetupSettings() {
+      lastUserActionTime = Date.now();
       state.hysteresis = setupTempHyst;
       calibration = { master: setupTempCalib.master, rover: setupTempCalib.rover };
 
@@ -3279,6 +3286,7 @@
     }
 
     async function saveSchedule() {
+      lastUserActionTime = Date.now();
       const isEnabled = document.getElementById('schedEnabled').checked;
       const sTime = document.getElementById('schedStartTime').value.split(':');
       const eTime = document.getElementById('schedEndTime').value.split(':');
@@ -3301,7 +3309,7 @@
       state.hysteresis = hyst;
       state.days_mask = activeDaysBitmask;
 
-      const fullDaysMask = (state.temp_source << 8) | (activeDaysBitmask & 0x7F);
+      const fullDaysMask = buildFullDaysMask(activeDaysBitmask);
 
       if (sbClient) {
         const { error } = await sbClient
@@ -4229,7 +4237,7 @@
       // ANINDA GECİKMESİZ SUPABASE GÜNCELLEMESİ (Röle açık kalmasını kesin önler)
       if (sbClient) {
         try {
-          const fullDaysMask = (state.temp_source << 8) | (state.days_mask & 0x7F);
+          const fullDaysMask = buildFullDaysMask();
           await sbClient
             .from('thermostat')
             .update({
@@ -4247,6 +4255,7 @@
 
     // Sensör Kaynağı Değiştirme (0: Oto, 1: Hub, 2: Rover, 3: Ortalama)
     function setSensorSource(src) {
+      lastUserActionTime = Date.now();
       state.temp_source = src;
       renderUI();
       syncToSupabase();
@@ -5682,20 +5691,19 @@ function drawHeatingChart(sessions, dayOffset) {
     window.setControlMode = setControlMode;
     window.setSensorSource = setSensorSource;
 
-    // Supabase'e Yazma (Debounced)
+    // Supabase'e Yazma (Hızlı Debounce)
     async function syncToSupabase() {
       if (!sbClient) return;
       clearTimeout(updateDebounceTimer);
       updateDebounceTimer = setTimeout(async () => {
         try {
-          const fullDaysMask = (state.temp_source << 8) | (state.days_mask & 0x7F);
+          const fullDaysMask = buildFullDaysMask();
           const { error } = await sbClient
             .from('thermostat')
             .update({
               set_temp: state.set_temp,
               mode: state.mode,
               thermo_enabled: (state.mode === 'auto'),
-              schedule_enabled: Boolean(state.schedule_enabled),
               schedule_enabled: Boolean(state.schedule_enabled),
               days_mask: fullDaysMask
             })
@@ -5705,7 +5713,7 @@ function drawHeatingChart(sessions, dayOffset) {
         } catch (e) {
           console.error('Network error:', e);
         }
-      }, 300);
+      }, 80);
     }
 
     let lastSeenDbUpdatedAt = null;
@@ -5764,28 +5772,34 @@ function drawHeatingChart(sessions, dayOffset) {
             state.rover_temp = 0.0;
           }
 
-          state.set_temp = Number(data.set_temp);
           applyCalibratedTemperatures();
 
-          state.mode = data.mode || 'auto';
           state.r1_state = Boolean(data.r1_state);
           state.c3_online = Boolean(data.c3_online);
-          state.schedule_enabled = Boolean(data.schedule_enabled);
-          if (data.start_hour !== undefined) state.start_hour = Number(data.start_hour);
-          if (data.start_min !== undefined) state.start_min = Number(data.start_min);
-          if (data.end_hour !== undefined) state.end_hour = Number(data.end_hour);
-          if (data.end_min !== undefined) state.end_min = Number(data.end_min);
-          if (data.eco_temp !== undefined) state.eco_temp = Number(data.eco_temp);
-          if (data.hysteresis !== undefined) state.hysteresis = Number(data.hysteresis);
+
+          const userRecentlyActed = (Date.now() - lastUserActionTime < 4500);
+          if (!userRecentlyActed) {
+            state.set_temp = Number(data.set_temp);
+            state.mode = data.mode || 'auto';
+            state.schedule_enabled = Boolean(data.schedule_enabled);
+            if (data.start_hour !== undefined) state.start_hour = Number(data.start_hour);
+            if (data.start_min !== undefined) state.start_min = Number(data.start_min);
+            if (data.end_hour !== undefined) state.end_hour = Number(data.end_hour);
+            if (data.end_min !== undefined) state.end_min = Number(data.end_min);
+            if (data.eco_temp !== undefined) state.eco_temp = Number(data.eco_temp);
+            if (data.hysteresis !== undefined) state.hysteresis = Number(data.hysteresis);
+          }
 
           if (data.days_mask !== undefined && data.days_mask !== null) {
             const dm = Number(data.days_mask);
             if (dm > 3) {
-              state.temp_source = (dm >> 8) & 0x03;
-              state.days_mask = dm & 0x7F;
+              if (!userRecentlyActed) {
+                state.temp_source = (dm >> 8) & 0x03;
+                state.days_mask = dm & 0x7F;
+              }
               state.c3_confirmed = Boolean((dm >> 10) & 0x01);
               state.c3_r1_actual = Boolean((dm >> 11) & 0x01);
-            } else if (dm >= 0 && dm <= 3) {
+            } else if (dm >= 0 && dm <= 3 && !userRecentlyActed) {
               state.temp_source = dm;
             }
           }
@@ -5906,21 +5920,25 @@ function drawHeatingChart(sessions, dayOffset) {
             state.r1_state = Boolean(d.r1_state);
             trackHeatingSession(state.r1_state);
             state.c3_online = Boolean(d.c3_online);
-            state.schedule_enabled = Boolean(d.schedule_enabled);
+
+            const userRecentlyActed = (Date.now() - lastUserActionTime < 4500);
+            if (!userRecentlyActed) {
+              state.schedule_enabled = Boolean(d.schedule_enabled);
+              if (d.set_temp !== undefined) state.set_temp = Number(d.set_temp);
+              if (d.mode !== undefined) state.mode = d.mode;
+            }
             if (d.days_mask !== undefined && d.days_mask !== null) {
               const dm = Number(d.days_mask);
               if (dm > 3) {
-                state.temp_source = (dm >> 8) & 0x03;
-                state.days_mask = dm & 0x7F;
+                if (!userRecentlyActed) {
+                  state.temp_source = (dm >> 8) & 0x03;
+                  state.days_mask = dm & 0x7F;
+                }
                 state.c3_confirmed = Boolean((dm >> 10) & 0x01);
                 state.c3_r1_actual = Boolean((dm >> 11) & 0x01);
-              } else if (dm >= 0 && dm <= 3) {
+              } else if (dm >= 0 && dm <= 3 && !userRecentlyActed) {
                 state.temp_source = dm;
               }
-            }
-            if (document.activeElement.tagName !== 'BUTTON' && document.activeElement.tagName !== 'INPUT') {
-              state.set_temp = Number(d.set_temp);
-              state.mode = d.mode;
             }
             renderUI();
           }
