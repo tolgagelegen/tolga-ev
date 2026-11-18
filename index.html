@@ -2904,8 +2904,9 @@
           <div class="device-card-title">💡 RGB LED Durum Anlamları</div>
           <div style="font-size:0.75rem; color:var(--text-sub); display:flex; flex-direction:column; gap:6px; line-height:1.4;">
             <div>🟠 <strong>Turuncu:</strong> Kombi devrede (ısıtıyor).</div>
-            <div>🔵 <strong>Mavi / Camgöbeği:</strong> Kombi beklemede (kapalı).</div>
-            <div>🟢 <strong>Kısa Yeşil Flaş:</strong> Failover modu devrede (Sistemi Rover yönetiyor).</div>
+            <div>🩵 <strong>Turkuaz:</strong> Otomatik termostat aktif.</div>
+            <div>🔵 <strong>Mavi:</strong> Beklemede / Haftalık program.</div>
+            <div>🌈 <strong>Renk Dönüşü:</strong> Sistem kapalı (Kapalı modu).</div>
             <div>🔴 <strong>Kırmızı Yanıp Sönme:</strong> Sinyal kesintisi veya sensör bağlantı hatası.</div>
           </div>
         </div>
@@ -4074,6 +4075,7 @@
       }
 
       // 4. Röle Banner
+      const banner = document.getElementById('relayCard1');
       const pill = document.getElementById('relayPill');
       if (banner && pill) {
         if (state.r1_state) {
