@@ -3192,7 +3192,7 @@
       }
 
       // 4. Yerel Hub'a da gönder
-      fetch(`/api/thermo_set?hyst=${state.hysteresis}`).catch(()=>{});
+      fetch(`/api/thermo_set?hyst=${state.hysteresis}&cal_m=${calibration.master}&cal_r=${calibration.rover}`).catch(()=>{});
 
       // 5. Sıcaklıkları yeni kalibrasyonla anında yeniden hesapla ve UI güncelle
       applyCalibratedTemperatures();
@@ -3212,6 +3212,12 @@
         p.calibration = calibration;
         p.updated_at = Date.now();
         await sbClient.from('thermostat').update({ mode: JSON.stringify(p) }).eq('id', 'runtime_stats');
+        await sbClient.from('thermostat').upsert({
+          id: 'cal_cfg',
+          current_temp: Number(calibration.master) || 0.0,
+          rover_temp: Number(calibration.rover) || 0.0,
+          mode: JSON.stringify(calibration)
+        });
       } catch(e) {}
     }
 
