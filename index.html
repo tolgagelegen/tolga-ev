@@ -2982,8 +2982,11 @@
       mode: 'auto',
       r1_state: false,
       c3_online: false,
+      c3_confirmed: false,
+      c3_r1_actual: false,
       rover_online: true,
       master_online: true,
+      failover_active: false,
       schedule_enabled: false,
       days_mask: 127,
       start_hour: 8,
@@ -3012,6 +3015,7 @@
     let reportPeriodFilter = 'today'; // 'today', 'yesterday', 'week', 'all'
     let lastMasterHeartbeat = Date.now();
     let lastRoverHeartbeat = Date.now();
+    let lastCloudHeartbeat = Date.now();
 
     let updateDebounceTimer = null;
 
@@ -3074,7 +3078,8 @@
 
     function buildFullDaysMask(dayMask = state.days_mask) {
       const c3Bits = (state.c3_confirmed ? 0x400 : 0) | (state.c3_r1_actual ? 0x800 : 0);
-      return c3Bits | ((state.temp_source & 0x03) << 8) | (dayMask & 0x7F);
+      const failoverBit = state.failover_active ? 0x1000 : 0;
+      return failoverBit | c3Bits | ((state.temp_source & 0x03) << 8) | (dayMask & 0x7F);
     }
 
     function applyCustomPreset(key) {
@@ -3228,7 +3233,7 @@
         state.current_temp = Number((rawMasterTemp + (calibration.master || 0.0)).toFixed(2));
       }
 
-      if (!state.master_online || !state.rover_online || rawRoverTemp == null || isNaN(rawRoverTemp) || rawRoverTemp <= 0) {
+      if (!state.rover_online || rawRoverTemp == null || isNaN(rawRoverTemp) || rawRoverTemp <= 0) {
         state.rover_temp = 0.0;
       } else {
         state.rover_temp = Number((rawRoverTemp + (calibration.rover || 0.0)).toFixed(2));
@@ -3918,7 +3923,9 @@
       let sourceTagName = 'Otomatik';
 
       const isMasterAlive = (state.master_online === true);
-      const isRoverAlive = isMasterAlive && (state.rover_online === true);
+      const isRoverAlive = (state.rover_online === true);
+      const isFailover = (state.failover_active === true) && !isMasterAlive && isRoverAlive;
+      const isControllerAlive = isMasterAlive || isFailover;
 
       // Canlı okuma kesildiğinde (enerji kesintisinde) 0 göster
       const hubVal = isMasterAlive 
@@ -3929,18 +3936,27 @@
         : 0.0;
 
       if (state.temp_source === 1) { // Sadece Master
-        activeAmbient = isMasterAlive ? hubVal : 0.0;
-        sourceTagName = isMasterAlive ? 'Sadece MASTER (DS18B20)' : 'Sadece MASTER (⚡ Enerji Kesik)';
+        if (isMasterAlive) {
+          activeAmbient = hubVal;
+          sourceTagName = 'Sadece MASTER (DS18B20)';
+        } else if (isFailover) {
+          activeAmbient = roverVal;
+          sourceTagName = '👑 Yedek Master (OTHER Devrede)';
+        } else {
+          activeAmbient = 0.0;
+          sourceTagName = 'Sadece MASTER (⚡ Enerji Kesik)';
+        }
       } else if (state.temp_source === 2) { // Sadece Other
         activeAmbient = isRoverAlive ? roverVal : 0.0;
-        sourceTagName = isRoverAlive ? 'Sadece OTHER (NTC)' : 'Sadece OTHER (⚡ Enerji Kesik)';
+        if (isFailover) sourceTagName = '👑 Yedek Master • Sadece OTHER (NTC)';
+        else sourceTagName = isRoverAlive ? 'Sadece OTHER (NTC)' : 'Sadece OTHER (⚡ Enerji Kesik)';
       } else if (state.temp_source === 3) { // Ortalama ((Master + Other) / 2)
         if (isMasterAlive && isRoverAlive) {
           activeAmbient = (hubVal + roverVal) / 2.0;
           sourceTagName = 'İki Sensörün Ortalaması (MASTER + OTHER)';
         } else if (isRoverAlive) {
           activeAmbient = roverVal;
-          sourceTagName = 'Ortalama (⚡ Sadece OTHER Canlı)';
+          sourceTagName = isFailover ? '👑 Yedek Master (Sadece OTHER Canlı)' : 'Ortalama (⚡ Sadece OTHER Canlı)';
         } else if (isMasterAlive) {
           activeAmbient = hubVal;
           sourceTagName = 'Ortalama (⚡ Sadece MASTER Canlı)';
@@ -3951,7 +3967,7 @@
       } else { // 0: Otomatik
         if (isRoverAlive) {
           activeAmbient = roverVal;
-          sourceTagName = 'Otomatik (OTHER Öncelikli)';
+          sourceTagName = isFailover ? '👑 Yedek Master (OTHER Devrede)' : 'Otomatik (OTHER Öncelikli)';
         } else if (isMasterAlive) {
           activeAmbient = hubVal;
           sourceTagName = 'Otomatik (OTHER Kesik ➔ MASTER Aktif)';
@@ -3967,7 +3983,7 @@
         if (!isMasterAlive && !isRoverAlive) {
           ambEl.innerText = '0.0°C';
           ambEl.style.color = '#ef4444';
-        } else if (activeAmbient === 0.0 && (!isMasterAlive || !isRoverAlive)) {
+        } else if (activeAmbient === 0.0 && (!isControllerAlive || !isRoverAlive)) {
           ambEl.innerText = '0.0°C';
           ambEl.style.color = '#ef4444';
         } else {
@@ -4005,10 +4021,18 @@
           roverEl.innerText = (state.rover_temp != null && !isNaN(state.rover_temp)) ? Number(state.rover_temp).toFixed(1) + '°C' : '--.-°C';
           roverEl.style.color = '';
           roverEl.style.textShadow = '';
-          if (roverSub) roverSub.innerText = 'Kablosuz Oda Sensörü';
-          if (roverStatus) {
-            roverStatus.innerText = '● ESP-NOW';
-            roverStatus.style.color = '#10b981';
+          if (isFailover) {
+            if (roverSub) roverSub.innerHTML = '<span style="color:#f59e0b; font-weight:700;">👑 Yedek Master Devrede</span>';
+            if (roverStatus) {
+              roverStatus.innerText = '👑 Yedek Master';
+              roverStatus.style.color = '#f59e0b';
+            }
+          } else {
+            if (roverSub) roverSub.innerText = 'Kablosuz Oda Sensörü';
+            if (roverStatus) {
+              roverStatus.innerText = '● ESP-NOW';
+              roverStatus.style.color = '#10b981';
+            }
           }
         }
       }
@@ -4125,21 +4149,33 @@
       // Master Hub
       const sMasterText = document.getElementById('stripMasterText');
       const sMasterDot = document.getElementById('stripMasterDot');
-      if (sMasterText) sMasterText.innerText = `📶 SUPERONLINE • ${hubIp}`;
-      if (sMasterDot) sMasterDot.className = 'strip-dot green';
+      if (sMasterText) sMasterText.innerText = isMasterAlive ? `📶 SUPERONLINE • ${hubIp}` : '🔴 Enerji Kesildi (Çevrimdışı)';
+      if (sMasterDot) sMasterDot.className = 'strip-dot ' + (isMasterAlive ? 'green' : 'red');
 
       // Other / Rover Düğümü
       const sOtherText = document.getElementById('stripOtherText');
       const sOtherDot = document.getElementById('stripOtherDot');
       const oStatusBadge = document.getElementById('otherStatusBadge');
       const oTempVal = document.getElementById('otherTempVal');
-      const isOtherAlive = (state.rover_online !== false) && (roverVal != null);
+      const isOtherAlive = (state.rover_online === true) && (roverVal != null);
 
-      if (sOtherText) sOtherText.innerText = isOtherAlive ? `ESP-NOW (${roverVal != null ? roverVal.toFixed(1) + '°C' : 'Canlı'})` : 'Sinyal Kesik';
+      if (sOtherText) {
+        if (!isOtherAlive) sOtherText.innerText = 'Sinyal Kesik';
+        else if (isFailover) sOtherText.innerText = `👑 Yedek Master (${roverVal.toFixed(1)}°C)`;
+        else sOtherText.innerText = `ESP-NOW (${roverVal != null ? roverVal.toFixed(1) + '°C' : 'Canlı'})`;
+      }
       if (sOtherDot) sOtherDot.className = 'strip-dot ' + (isOtherAlive ? 'green' : 'red');
       if (oStatusBadge) {
-        oStatusBadge.innerText = isOtherAlive ? '🟢 Canlı Telemetri' : '🔴 Sinyal Kesik';
-        oStatusBadge.className = 'device-badge ' + (isOtherAlive ? 'green' : 'yellow');
+        if (!isOtherAlive) {
+          oStatusBadge.innerText = '🔴 Sinyal Kesik';
+          oStatusBadge.className = 'device-badge yellow';
+        } else if (isFailover) {
+          oStatusBadge.innerText = '👑 Yedek Master Aktif';
+          oStatusBadge.className = 'device-badge green';
+        } else {
+          oStatusBadge.innerText = '🟢 Canlı Telemetri';
+          oStatusBadge.className = 'device-badge green';
+        }
       }
       if (oTempVal) {
         oTempVal.innerText = isOtherAlive ? (roverVal != null ? roverVal.toFixed(1) + '°C' : '--.-°C') : '0.0°C (Kesik)';
@@ -4152,24 +4188,24 @@
       const c3Badge = document.getElementById('c3StatusBadge');
       const c3R1 = document.getElementById('c3Relay1Val');
 
-      const isC3Alive = isMasterAlive && Boolean(state.c3_online);
+      const isC3Alive = isControllerAlive && Boolean(state.c3_online);
       const c3Confirmed = Boolean(state.c3_confirmed);
       const c3ActualR1 = Boolean(state.c3_r1_actual);
       const c3Mismatch = isC3Alive && c3Confirmed && (c3ActualR1 !== Boolean(state.r1_state));
 
       if (sC3Text) {
-        if (!isMasterAlive) sC3Text.innerText = 'Çevrimdışı';
+        if (!isControllerAlive) sC3Text.innerText = 'Çevrimdışı';
         else if (!isC3Alive) sC3Text.innerText = state.r1_state ? '⚠️ C3 Çevrimdışı!' : 'Çevrimdışı';
         else if (c3Mismatch) sC3Text.innerText = '⏳ Eşitleniyor...';
         else sC3Text.innerText = `Hibrit (${state.r1_state ? 'Kombi AÇIK ✓' : 'Beklemede'})`;
       }
       if (sC3Dot) {
-        if (!isMasterAlive || !isC3Alive) sC3Dot.className = 'strip-dot red';
+        if (!isControllerAlive || !isC3Alive) sC3Dot.className = 'strip-dot red';
         else if (c3Mismatch) sC3Dot.className = 'strip-dot yellow';
         else sC3Dot.className = 'strip-dot green';
       }
       if (c3Badge) {
-        if (!isMasterAlive || !isC3Alive) {
+        if (!isControllerAlive || !isC3Alive) {
           c3Badge.innerText = '🔴 Çevrimdışı (30s Bekleniyor)';
           c3Badge.className = 'device-badge yellow';
         } else if (c3Mismatch) {
@@ -4430,7 +4466,7 @@
 
     function getActiveSensorTemp() {
       const mOk = (state.master_online && state.current_temp != null && !isNaN(state.current_temp) && state.current_temp > 0);
-      const rOk = (state.master_online && state.rover_online && state.rover_temp != null && !isNaN(state.rover_temp) && state.rover_temp > 0);
+      const rOk = (state.rover_online && state.rover_temp != null && !isNaN(state.rover_temp) && state.rover_temp > 0);
       const src = Number(state.temp_source || 0);
       if (src === 1) return mOk ? Number(state.current_temp) : (rOk ? Number(state.rover_temp) : 0);
       if (src === 2) return rOk ? Number(state.rover_temp) : (mOk ? Number(state.current_temp) : 0);
@@ -4672,21 +4708,24 @@
     // ==========================================
     function checkStationHealth() {
       const now = Date.now();
+      const cloudSecAgo = lastCloudHeartbeat ? Math.round((now - lastCloudHeartbeat) / 1000) : 999;
+      const isCloudAlive = (lastCloudHeartbeat > 0 && cloudSecAgo <= 12);
+      const isFailover = isCloudAlive && (state.failover_active === true);
+      if (!isCloudAlive) state.failover_active = false;
+
       const masterSecAgo = lastMasterHeartbeat ? Math.round((now - lastMasterHeartbeat) / 1000) : 999;
-      // Master her 3 saniyede bir PATCH atar. 6 saniye sinyal gelmezse enerji kesildi kabul et
-      const isMasterAlive = (lastMasterHeartbeat > 0 && masterSecAgo <= 6);
+      const isMasterAlive = isCloudAlive && !isFailover && (lastMasterHeartbeat > 0 && masterSecAgo <= 12);
       state.master_online = isMasterAlive;
 
       const roverSecAgo = lastRoverHeartbeat ? Math.round((now - lastRoverHeartbeat) / 1000) : 999;
-      const isRoverAlive = isMasterAlive && (state.rover_online === true) && (lastRoverHeartbeat > 0 && roverSecAgo <= 8);
+      const isRoverAlive = isCloudAlive && (state.rover_online === true) && (lastRoverHeartbeat > 0 && roverSecAgo <= 14);
       state.rover_online = isRoverAlive;
 
       if (!isMasterAlive) {
         state.current_temp = 0.0;
-        state.rover_temp = 0.0;
         rawMasterTemp = 0.0;
-        rawRoverTemp = 0.0;
-      } else if (!isRoverAlive) {
+      }
+      if (!isRoverAlive) {
         state.rover_temp = 0.0;
         rawRoverTemp = 0.0;
       }
@@ -4702,18 +4741,31 @@
       if (!container) return;
 
       let html = '';
+      const controllerAlive = masterAlive || (state.failover_active === true && roverAlive);
 
       if (!masterAlive) {
         const timeAgoText = masterSecAgo < 60 ? `${masterSecAgo} sn önce` : `${Math.floor(masterSecAgo/60)} dk önce`;
-        html += `
-          <div class="station-alert-card">
-            <div class="alert-icon-box">⚡</div>
-            <div class="alert-info-box">
-              <div class="alert-title">⚠️ MASTER HUB ENERJİSİ KESİLDİ / ÇEVRİMDIŞI</div>
-              <div class="alert-sub">Kombi kontrol ünitesinden sinyal alınamıyor (Son sinyal: ${timeAgoText}). Cihazın güç adaptörünü veya ev elektriğini kontrol ediniz.</div>
+        if (state.failover_active && roverAlive) {
+          html += `
+            <div class="station-alert-card warning-card" style="border-color: rgba(245, 158, 11, 0.55); background: linear-gradient(135deg, rgba(245, 158, 11, 0.16), rgba(16, 185, 129, 0.12));">
+              <div class="alert-icon-box">👑</div>
+              <div class="alert-info-box">
+                <div class="alert-title" style="color: #fbbf24;">👑 MASTER ENERJİSİ KESİLDİ — YEDEK MASTER (OTHER) DEVREDE</div>
+                <div class="alert-sub">Ana ünite çevrimdışı (${timeAgoText}). OTHER (Oda İstasyonu) bulut senkronizasyonunu ve C3 kombi kontrolünü otomatik devraldı; telefondan tüm komutlar aktiftir.</div>
+              </div>
             </div>
-          </div>
-        `;
+          `;
+        } else {
+          html += `
+            <div class="station-alert-card">
+              <div class="alert-icon-box">⚡</div>
+              <div class="alert-info-box">
+                <div class="alert-title">⚠️ MASTER HUB ENERJİSİ KESİLDİ / ÇEVRİMDIŞI</div>
+                <div class="alert-sub">Kombi kontrol ünitesinden sinyal alınamıyor (Son sinyal: ${timeAgoText}). Cihazın güç adaptörünü veya ev elektriğini kontrol ediniz.</div>
+              </div>
+            </div>
+          `;
+        }
       }
 
       if (!roverAlive) {
@@ -4728,7 +4780,7 @@
         `;
       }
 
-      if (masterAlive && state.r1_state && !state.c3_online) {
+      if (controllerAlive && state.r1_state && !state.c3_online) {
         html += `
           <div class="station-alert-card">
             <div class="alert-icon-box">🔥</div>
@@ -4738,7 +4790,7 @@
             </div>
           </div>
         `;
-      } else if (masterAlive && state.c3_online && state.c3_confirmed && (Boolean(state.c3_r1_actual) !== Boolean(state.r1_state))) {
+      } else if (controllerAlive && state.c3_online && state.c3_confirmed && (Boolean(state.c3_r1_actual) !== Boolean(state.r1_state))) {
         html += `
           <div class="station-alert-card warning-card">
             <div class="alert-icon-box">⏳</div>
@@ -4775,7 +4827,7 @@
         } else {
           sOtherDot.className = 'strip-dot green';
           const rVal = (state.rover_temp != null) ? state.rover_temp.toFixed(1) + '°C' : 'Canlı';
-          sOtherText.innerText = `ESP-NOW (${rVal})`;
+          sOtherText.innerText = state.failover_active ? `👑 Yedek Master (${rVal})` : `ESP-NOW (${rVal})`;
         }
       }
     }
@@ -5739,20 +5791,28 @@ function drawHeatingChart(sessions, dayOffset) {
           const now = Date.now();
           const dbUpdatedIso = data.updated_at || '';
 
-          // 1. Master Hub aktif olarak veritabanına yazıyor mu?
-          let isMasterRecentlyAlive = false;
+          // 0. Days Mask ve Failover (Bit 12) çözümle
+          let isFailoverRow = false;
+          if (data.days_mask !== undefined && data.days_mask !== null) {
+            const dm = Number(data.days_mask);
+            if (dm > 3) {
+              isFailoverRow = Boolean((dm >> 12) & 0x01);
+            }
+          }
+
+          // 1. Bulut kalp atışı taze mi? (Master veya Yedek Master Rover yazıyor mu?)
+          let isCloudRecentlyAlive = false;
           if (dbUpdatedIso) {
             const rowEpoch = new Date(dbUpdatedIso).getTime();
             const ageSec = (now - rowEpoch) / 1000;
-            // Master her 3 sn PATCH atar. 6 sn içi canlı kabul edilir (-3 sn tolerans)
-            if (ageSec >= -3 && ageSec <= 6) {
-              isMasterRecentlyAlive = true;
+            if (ageSec >= -3 && ageSec <= 10) {
+              isCloudRecentlyAlive = true;
             }
           }
 
           // 2. updated_at iki sorgu arasında değişti mi?
           if (dbUpdatedIso && lastSeenDbUpdatedAt && dbUpdatedIso !== lastSeenDbUpdatedAt) {
-            isMasterRecentlyAlive = true;
+            isCloudRecentlyAlive = true;
           }
 
           if (dbUpdatedIso !== lastSeenDbUpdatedAt) {
@@ -5760,16 +5820,28 @@ function drawHeatingChart(sessions, dayOffset) {
             lastSeenDbUpdatedTime = now;
           }
 
-          if (isMasterRecentlyAlive) {
-            lastMasterHeartbeat = now;
-            state.master_online = true;
-            state.rover_online = Boolean(data.rover_online);
-            if (state.rover_online) lastRoverHeartbeat = now;
-
-            rawMasterTemp = (data.current_temp != null && !isNaN(data.current_temp) && Number(data.current_temp) > 0) ? Number(data.current_temp) : 0.0;
-            rawRoverTemp = (data.rover_temp != null && !isNaN(data.rover_temp) && Number(data.rover_temp) > 0) ? Number(data.rover_temp) : 0.0;
+          if (isCloudRecentlyAlive) {
+            lastCloudHeartbeat = now;
+            state.failover_active = isFailoverRow;
+            if (isFailoverRow) {
+              // Yedek Master (OTHER) devrede, Master Hub enerjisi kesik!
+              state.master_online = false;
+              rawMasterTemp = 0.0;
+              state.current_temp = 0.0;
+              state.rover_online = Boolean(data.rover_online);
+              if (state.rover_online) lastRoverHeartbeat = now;
+              rawRoverTemp = (data.rover_temp != null && !isNaN(data.rover_temp) && Number(data.rover_temp) > 0) ? Number(data.rover_temp) : 0.0;
+            } else {
+              lastMasterHeartbeat = now;
+              state.master_online = true;
+              state.rover_online = Boolean(data.rover_online);
+              if (state.rover_online) lastRoverHeartbeat = now;
+              rawMasterTemp = (data.current_temp != null && !isNaN(data.current_temp) && Number(data.current_temp) > 0) ? Number(data.current_temp) : 0.0;
+              rawRoverTemp = (data.rover_temp != null && !isNaN(data.rover_temp) && Number(data.rover_temp) > 0) ? Number(data.rover_temp) : 0.0;
+            }
           } else {
-            // Master enerjisi kesilmiş veya çevrimdışı!
+            // İki istasyondan da bulut sinyali kesilmiş!
+            state.failover_active = false;
             state.master_online = false;
             state.rover_online = false;
             rawMasterTemp = 0.0;
@@ -5908,19 +5980,37 @@ function drawHeatingChart(sessions, dayOffset) {
 
             // Ev Termostat Durumu (id === 'home')
             const now = Date.now();
-            lastMasterHeartbeat = now;
-            state.master_online = true;
+            lastCloudHeartbeat = now;
             lastSeenDbUpdatedAt = d.updated_at || '';
             lastSeenDbUpdatedTime = now;
 
-            if (d.rover_online !== undefined) {
-              state.rover_online = Boolean(d.rover_online);
-              if (state.rover_online) lastRoverHeartbeat = now;
-              else state.rover_temp = 0.0;
+            const dmRaw = (d.days_mask !== undefined && d.days_mask !== null) ? Number(d.days_mask) : null;
+            const isFailoverRow = (dmRaw !== null && dmRaw > 3) && Boolean((dmRaw >> 12) & 0x01);
+            state.failover_active = isFailoverRow;
+
+            if (isFailoverRow) {
+              state.master_online = false;
+              rawMasterTemp = 0.0;
+              state.current_temp = 0.0;
+            } else {
+              lastMasterHeartbeat = now;
+              state.master_online = true;
+              rawMasterTemp = (d.current_temp != null && !isNaN(d.current_temp) && Number(d.current_temp) > 0) ? Number(d.current_temp) : 0.0;
             }
 
-            rawMasterTemp = (d.current_temp != null && !isNaN(d.current_temp) && Number(d.current_temp) > 0) ? Number(d.current_temp) : 0.0;
-            rawRoverTemp = (d.rover_temp != null && !isNaN(d.rover_temp) && Number(d.rover_temp) > 0) ? Number(d.rover_temp) : 0.0;
+            if (d.rover_online !== undefined) {
+              state.rover_online = Boolean(d.rover_online);
+              if (state.rover_online) {
+                lastRoverHeartbeat = now;
+              } else {
+                state.rover_temp = 0.0;
+                rawRoverTemp = 0.0;
+              }
+            }
+
+            if (state.rover_online) {
+              rawRoverTemp = (d.rover_temp != null && !isNaN(d.rover_temp) && Number(d.rover_temp) > 0) ? Number(d.rover_temp) : 0.0;
+            }
             applyCalibratedTemperatures();
 
             state.r1_state = Boolean(d.r1_state);
@@ -5933,8 +6023,8 @@ function drawHeatingChart(sessions, dayOffset) {
               if (d.set_temp !== undefined) state.set_temp = Number(d.set_temp);
               if (d.mode !== undefined) state.mode = d.mode;
             }
-            if (d.days_mask !== undefined && d.days_mask !== null) {
-              const dm = Number(d.days_mask);
+            if (dmRaw !== null) {
+              const dm = dmRaw;
               if (dm > 3) {
                 if (!userRecentlyActed) {
                   state.temp_source = (dm >> 8) & 0x03;
@@ -5942,6 +6032,7 @@ function drawHeatingChart(sessions, dayOffset) {
                 }
                 state.c3_confirmed = Boolean((dm >> 10) & 0x01);
                 state.c3_r1_actual = Boolean((dm >> 11) & 0x01);
+                state.failover_active = Boolean((dm >> 12) & 0x01);
               } else if (dm >= 0 && dm <= 3 && !userRecentlyActed) {
                 state.temp_source = dm;
               }
